@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Botit Feed Automation{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/botit-logo.png">
+    <link rel="apple-touch-icon" href="/static/botit-logo.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-dark: #4338ca;
+            --sidebar-bg: #1e1b4b;
+            --sidebar-hover: #312e81;
+        }
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, var(--sidebar-bg) 0%, #312e81 100%);
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar .brand {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar .brand h5 {
+            color: #fff;
+            font-weight: 700;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        .sidebar .brand small {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.75rem;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar a i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background-color: var(--sidebar-hover);
+            color: #fff;
+            border-left-color: var(--primary-color);
+        }
+        .content {
+            padding: 24px;
+        }
+        .page-header {
+            margin-bottom: 24px;
+        }
+        .page-header h2 {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        .page-header p {
+            color: #64748b;
+            margin: 0;
+        }
+        .filter-card {
+            background: #fff;
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 1.4rem;
+        }
+        .stat-card .stat-icon.purple { background: #ede9fe; color: #7c3aed; }
+        .stat-card .stat-icon.blue { background: #dbeafe; color: #2563eb; }
+        .stat-card .stat-icon.green { background: #dcfce7; color: #16a34a; }
+        .stat-card .stat-icon.orange { background: #ffedd5; color: #ea580c; }
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .data-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .data-card .card-header {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .data-card .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .pipeline-toggle {
+            background: #f1f5f9;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pipeline-toggle:hover {
+            background: #e2e8f0;
+        }
+        .pipeline-code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px 24px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .table {
+            margin: 0;
+        }
+        .table thead th {
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            white-space: nowrap;
+        }
+        .table tbody td {
+            padding: 12px 16px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            font-size: 0.9rem;
+        }
+        .table tbody tr:hover {
+            background: #f8fafc;
+        }
+        .vendor-cell, .item-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .vendor-cell img, .item-cell img {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #e2e8f0;
+        }
+        .vendor-cell .info, .item-cell .info {
+            display: flex;
+            flex-direction: column;
+        }
+        .vendor-cell .name, .item-cell .name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.9rem;
+        }
+        .vendor-cell .id, .item-cell .id {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-family: monospace;
+        }
+        .badge-category {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .rank-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+        .rank-badge.gold { background: #fef3c7; color: #d97706; }
+        .rank-badge.silver { background: #f1f5f9; color: #64748b; }
+        .rank-badge.bronze { background: #ffedd5; color: #c2410c; }
+        .rank-badge.default { background: #f8fafc; color: #94a3b8; }
+        .metric {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .loading-overlay {
+            display: none;
+            padding: 60px;
+            text-align: center;
+        }
+        .loading-overlay .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--primary-color);
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #64748b;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-none d-md-block sidebar">
+                <div class="brand">
+                    <div class="d-flex align-items-center mb-2">
+                        <img src="/static/botit-logo.png" alt="Botit" style="width: 40px; height: 40px; border-radius: 8px; margin-right: 10px;">
+                        <h5 class="mb-0">Botit Analytics</h5>
+                    </div>
+                    <small>Feed Automation Dashboard</small>
+                </div>
+                <div class="pt-3">
+                    <a href="/" class="{% if request.endpoint == 'index' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2"></i> Dashboard
+                    </a>
+                    <a href="/vendors" class="{% if request.endpoint == 'vendors_page' %}active{% endif %}">
+                        <i class="bi bi-shop"></i> Top Vendors
+                    </a>
+                    <a href="/items" class="{% if request.endpoint == 'items_page' %}active{% endif %}">
+                        <i class="bi bi-box-seam"></i> Top Items
+                    </a>
+                    <a href="/seasonality" class="{% if request.endpoint == 'seasonality_page' %}active{% endif %}">
+                        <i class="bi bi-calendar-event"></i> Seasonality
+                    </a>
+                </div>
+            </nav>
+
+            <main role="main" class="col-md-10 ml-sm-auto content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function formatNumber(value) {
+            return new Intl.NumberFormat('en-US').format(value || 0);
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(value || 0);
+        }
+
+        function formatPipeline(pipeline) {
+            return JSON.stringify(pipeline, null, 2);
+        }
+
+        function getRankClass(index) {
+            if (index === 0) return 'gold';
+            if (index === 1) return 'silver';
+            if (index === 2) return 'bronze';
+            return 'default';
+        }
+
+        function truncateId(id) {
+            if (!id) return 'N/A';
+            return id.length > 8 ? id.substring(0, 8) + '...' : id;
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

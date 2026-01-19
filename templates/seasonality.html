@@ -1,0 +1,1384 @@
+{% extends "base.html" %}
+
+{% block title %}Egypt Seasonality Trends - Botit Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex align-items-center mb-2">
+        <img src="/static/botit-logo.png" alt="Botit" style="width: 48px; height: 48px; border-radius: 10px; margin-right: 16px;">
+        <div>
+            <h2 class="mb-1">Egypt Seasonality Trends</h2>
+            <p class="mb-0">Key dates, holidays, and shopping seasons in Egypt to help plan inventory and marketing</p>
+        </div>
+    </div>
+</div>
+
+<div class="filter-card">
+    <div class="row align-items-center">
+        <div class="col-md-3">
+            <label for="year_select" class="form-label fw-semibold">Select Year</label>
+            <select class="form-select" id="year_select" onchange="updateCalendar()">
+                <option value="{{ current_year - 1 }}">{{ current_year - 1 }}</option>
+                <option value="{{ current_year }}" selected>{{ current_year }}</option>
+                <option value="{{ current_year + 1 }}">{{ current_year + 1 }}</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="category_select" class="form-label fw-semibold">Event Category</label>
+            <select class="form-select" id="category_select" onchange="filterEvents()">
+                <option value="">All Categories</option>
+                <option value="religious">Religious Holidays</option>
+                <option value="national">National Holidays</option>
+                <option value="shopping">Shopping Seasons</option>
+                <option value="seasonal">Seasonal Events</option>
+            </select>
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted small">Islamic dates are approximate and may vary</span>
+        </div>
+    </div>
+</div>
+
+<!-- Current Season Highlight -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-calendar-event"></i></div>
+        <div class="stat-label">Current Season</div>
+        <div class="stat-value" id="current-season" style="font-size: 1.1rem;">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-clock-history"></i></div>
+        <div class="stat-label">Next Major Event</div>
+        <div class="stat-value" id="next-event" style="font-size: 1.1rem;">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-calendar-check"></i></div>
+        <div class="stat-label">Days Until</div>
+        <div class="stat-value" id="days-until">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="stat-label">Peak Shopping</div>
+        <div class="stat-value" id="peak-shopping" style="font-size: 1.1rem;">-</div>
+    </div>
+</div>
+
+<!-- Timeline View -->
+<div class="data-card mb-4">
+    <div class="card-header">
+        <h5><i class="bi bi-calendar3 me-2"></i>Annual Events Timeline</h5>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary active" onclick="setView('timeline', this)">Timeline</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setView('calendar', this)">Calendar</button>
+        </div>
+    </div>
+
+    <div id="timeline-view" class="p-4">
+        <div class="timeline" id="events-timeline"></div>
+    </div>
+
+    <div id="calendar-view" class="p-4" style="display: none;">
+        <div class="row" id="calendar-grid"></div>
+    </div>
+</div>
+
+<!-- Detailed Events Table -->
+<div class="data-card">
+    <div class="card-header">
+        <h5><i class="bi bi-table me-2"></i>All Events & Seasons</h5>
+        <span class="badge bg-primary" id="events-count">0 events</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table" id="events-table">
+            <thead>
+                <tr>
+                    <th>Event</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Duration</th>
+                    <th>Business Impact</th>
+                    <th>Recommended Actions</th>
+                </tr>
+            </thead>
+            <tbody id="events-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="d-flex align-items-center">
+                    <img src="/static/botit-logo.png" alt="Botit" style="width: 32px; height: 32px; border-radius: 6px; margin-right: 12px;">
+                    <h5 class="modal-title mb-0" id="eventModalLabel">Event Details</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="event-info-card">
+                            <h6 id="modal-event-name" class="text-primary mb-2"></h6>
+                            <p id="modal-event-description" class="text-muted small mb-2"></p>
+                            <div class="d-flex gap-3 mb-2">
+                                <span><i class="bi bi-calendar3 me-1"></i><span id="modal-event-date"></span></span>
+                                <span><i class="bi bi-clock me-1"></i><span id="modal-event-duration"></span></span>
+                            </div>
+                            <p class="mb-0"><strong>Recommended Actions:</strong> <span id="modal-event-actions" class="text-muted"></span></p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="event-info-card">
+                            <h6 class="mb-3"><i class="bi bi-tags me-2"></i>Suggested Categories</h6>
+                            <div id="modal-categories" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggested Items Section (NEW) -->
+                <div class="data-card mb-4" id="suggested-items-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-lightbulb me-2 text-warning"></i>Suggested Items for this Event</h6>
+                    </div>
+                    <div id="suggested-items-container" class="p-3">
+                        <p class="text-muted text-center mb-0">No suggested items for this event</p>
+                    </div>
+                </div>
+
+                <!-- Category Selection for Vendors/Items -->
+                <div class="filter-card mb-4">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label for="modal_category_select" class="form-label fw-semibold">Filter by Category</label>
+                            <select class="form-select" id="modal_category_select" onchange="onModalCategoryChange()">
+                                <option value="">Select a category...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="modal_subcategory_select" class="form-label fw-semibold">Subcategory</label>
+                            <select class="form-select" id="modal_subcategory_select" disabled>
+                                <option value="">All subcategories</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Date Range (for data)</label>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="modal_start_date">
+                                <span class="input-group-text">to</span>
+                                <input type="date" class="form-control" id="modal_end_date">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" onclick="fetchVendorsAndItems()">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Section (moved to top) -->
+                <div class="data-card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-box-seam me-2"></i>Top Items</h6>
+                        <span class="badge bg-secondary" id="items-count">0 items</span>
+                    </div>
+                    <div id="items-loading" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="items-container" class="p-3">
+                        <p class="text-muted text-center mb-0">Select a category and click Search to load items</p>
+                    </div>
+                </div>
+
+                <!-- Vendors Section -->
+                <div class="data-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-shop me-2"></i>Top Vendors</h6>
+                        <span class="badge bg-secondary" id="vendors-count">0 vendors</span>
+                    </div>
+                    <div id="vendors-loading" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="vendors-container" class="p-3">
+                        <p class="text-muted text-center mb-0">Select a category and click Search to load vendors</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+        border-radius: 2px;
+    }
+    .timeline-item {
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 30px;
+        position: relative;
+        margin: 20px 0;
+        width: 50%;
+    }
+    .timeline-item:nth-child(odd) {
+        align-self: flex-end;
+        justify-content: flex-start;
+        padding-left: 30px;
+        padding-right: 0;
+        margin-left: 50%;
+    }
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border: 4px solid #4f46e5;
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .timeline-item:nth-child(even)::after {
+        right: -8px;
+    }
+    .timeline-item:nth-child(odd)::after {
+        left: -8px;
+    }
+    .timeline-content {
+        background: #fff;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #4f46e5;
+        max-width: 400px;
+    }
+    .timeline-content.religious { border-left-color: #7c3aed; }
+    .timeline-content.national { border-left-color: #059669; }
+    .timeline-content.shopping { border-left-color: #dc2626; }
+    .timeline-content.seasonal { border-left-color: #f59e0b; }
+    .timeline-content h6 {
+        margin: 0 0 8px 0;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .timeline-content .date {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+    .timeline-content .badge-cat {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+    .badge-religious { background: #ede9fe; color: #7c3aed; }
+    .badge-national { background: #d1fae5; color: #059669; }
+    .badge-shopping { background: #fee2e2; color: #dc2626; }
+    .badge-seasonal { background: #fef3c7; color: #d97706; }
+    .month-card {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+    .month-card h6 {
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .month-event {
+        background: #fff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        border-left: 3px solid #4f46e5;
+        font-size: 0.85rem;
+    }
+    .impact-high { color: #dc2626; font-weight: 600; }
+    .impact-medium { color: #f59e0b; font-weight: 600; }
+    .impact-low { color: #059669; font-weight: 600; }
+
+    /* Modal Styles */
+    .event-info-card {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 16px;
+        height: 100%;
+    }
+    .category-chip {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    .category-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .category-chip.selected {
+        border-color: #1e293b;
+    }
+    .category-chip.fashion { background: #fce7f3; color: #be185d; }
+    .category-chip.beauty { background: #f3e8ff; color: #7c3aed; }
+    .category-chip.electronics { background: #dbeafe; color: #1d4ed8; }
+    .category-chip.groceries { background: #dcfce7; color: #15803d; }
+    .category-chip.restaurants { background: #ffedd5; color: #c2410c; }
+    .category-chip.home { background: #fef3c7; color: #b45309; }
+    .category-chip.kids { background: #cffafe; color: #0891b2; }
+    .category-chip.sports { background: #d1fae5; color: #059669; }
+    .category-chip.stationary { background: #e0e7ff; color: #4338ca; }
+    .category-chip.flowers { background: #fce7f3; color: #db2777; }
+    .category-chip.entertainment { background: #fae8ff; color: #a21caf; }
+    .category-chip.health { background: #ccfbf1; color: #0d9488; }
+    .category-chip.pharmacies { background: #fee2e2; color: #dc2626; }
+    .category-chip.automotive { background: #e5e7eb; color: #374151; }
+    .category-chip.pet { background: #fef9c3; color: #a16207; }
+
+    .vendor-card, .item-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.2s;
+    }
+    .vendor-card:hover, .item-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .vendor-img, .item-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: #f1f5f9;
+    }
+    .subcategory-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        background: #f1f5f9;
+        color: #64748b;
+        margin: 2px;
+    }
+    .suggested-item-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+    }
+    .suggested-item-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+        border-color: #f59e0b;
+    }
+    .suggested-item-chip i {
+        font-size: 1.1rem;
+    }
+    .suggested-item-chip .item-category {
+        font-size: 0.7rem;
+        opacity: 0.8;
+        margin-left: 4px;
+    }
+    .timeline-content.clickable, .month-event.clickable, #events-tbody tr.clickable {
+        cursor: pointer;
+    }
+    .timeline-content.clickable:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    #events-tbody tr.clickable:hover {
+        background: #f8fafc;
+    }
+</style>
+
+<script>
+    // Category mapping from category_mapping.py
+    const shoppingCategories = [
+        "stationary", "restaurants", "electronics", "pharmacies", "pet care", "home and garden",
+        "beauty", "entertainment", "health and nutrition", "groceries", "fashion",
+        "automotive", "sports", "kids", "flowers and gifts"
+    ];
+
+    const shoppingSubcategoryMap = {
+        "fashion": ["sportswear", "casual wear", "beach wear", "maternity", "undergarments", "designer wear", "plus sizes", "medical wear", "sleepwear", "swimwear", "footwear", "jewelry", "eyewear", "religious wear", "baby clothes", "accessories"],
+        "beauty": ["skincare", "haircare", "fragrances", "cosmetics"],
+        "stationary": ["arts and crafts", "stationary accessories", "office supplies", "stationary supplies", "school supplies"],
+        "automotive": ["auto care", "auto accessories", "motorcycle care"],
+        "pharmacies": ["women's care", "men's care", "eye care", "dental care", "incontinence", "medicine", "first aid and medical equipment"],
+        "health and nutrition": ["vitamins", "natural solutions", "protein products", "preformance supplements", "dietary supplements", "weight management"],
+        "sports": ["outdoor sports", "water sports", "fitness and training", "team sports", "winter sports", "recreational activities", "martial arts"],
+        "home and garden": ["kitchenwear", "bakeware", "tableware", "drinkware", "household products", "storage and organization", "bed and bath", "home decor", "appliances", "lighting", "furniture", "gardening and outdoor", "hardware and home improvement"],
+        "flowers and gifts": ["flowers", "gifts"],
+        "groceries": ["supermarkets", "specialty foods", "mini marts", "farm to table"],
+        "electronics": ["electronics", "computers", "phones", "photography"],
+        "entertainment": ["books", "musical instruments", "musical equipment", "movies", "music", "gaming"],
+        "kids": ["kids furniture", "baby care", "baby furniture", "baby travel", "baby safety products", "toys and games"],
+        "pet care": ["dogs", "cats", "birds", "horses", "aquatic animals", "small pet supplies", "cows"],
+        "restaurants": ["burgers", "fast food", "pizza", "pasta", "sandwiches", "grills", "juices and drinks", "desserts", "cafes", "international", "bakery and cakes", "salads", "italian", "egyptian", "middle eastern", "sushi", "chinese", "japanese", "vegan", "vegetarian", "seafood", "asian", "mediterranean", "mexican", "american", "lebanese", "thai", "korean", "indian", "vietnamese", "french", "street food", "keto", "healthy"]
+    };
+
+    const egyptEvents = [
+        // Religious Holidays (Islamic - dates are approximate for 2024-2026)
+        {
+            name: "Ramadan Begins",
+            dates: { 2024: "2024-03-10", 2025: "2025-02-28", 2026: "2026-02-17" },
+            category: "religious",
+            duration: "30 days",
+            impact: "high",
+            description: "Holy month of fasting. Peak demand for food, beverages, and Ramadan decorations.",
+            actions: "Stock up on dates, juices, nuts, and festive items 2-3 weeks before",
+            suggestedCategories: ["groceries", "restaurants", "home and garden", "fashion"],
+            suggestedSubcategories: {
+                "groceries": ["supermarkets", "specialty foods"],
+                "restaurants": ["juices and drinks", "desserts", "egyptian", "middle eastern"],
+                "home and garden": ["home decor", "tableware", "drinkware", "kitchenwear"],
+                "fashion": ["religious wear", "casual wear"]
+            },
+            suggestedItems: [
+                { name: "Dates (Tamr)", category: "groceries", icon: "bi-basket" },
+                { name: "Juices & Drinks", category: "restaurants", icon: "bi-cup-straw" },
+                { name: "Nuts & Dried Fruits", category: "groceries", icon: "bi-tree" },
+                { name: "Ramadan Lantern (Fanoos)", category: "home and garden", icon: "bi-lamp" },
+                { name: "Prayer Rug", category: "fashion", icon: "bi-grid-3x3" },
+                { name: "Tableware Set", category: "home and garden", icon: "bi-cup" },
+                { name: "Oriental Sweets", category: "groceries", icon: "bi-cake" },
+                { name: "Ramadan Decorations", category: "home and garden", icon: "bi-stars" }
+            ]
+        },
+        {
+            name: "Eid al-Fitr",
+            dates: { 2024: "2024-04-10", 2025: "2025-03-30", 2026: "2026-03-20" },
+            category: "religious",
+            duration: "3-4 days",
+            impact: "high",
+            description: "End of Ramadan celebration. Major shopping for clothes, gifts, and sweets.",
+            actions: "Prepare for clothing, sweets (kahk), and gift sales 2 weeks before",
+            suggestedCategories: ["fashion", "flowers and gifts", "groceries", "kids", "beauty"],
+            suggestedSubcategories: {
+                "fashion": ["casual wear", "designer wear", "footwear", "jewelry", "accessories"],
+                "flowers and gifts": ["flowers", "gifts"],
+                "groceries": ["supermarkets", "specialty foods"],
+                "kids": ["toys and games", "baby clothes"],
+                "beauty": ["fragrances", "cosmetics"]
+            },
+            suggestedItems: [
+                { name: "Kahk (Eid Cookies)", category: "groceries", icon: "bi-circle" },
+                { name: "New Clothes", category: "fashion", icon: "bi-bag" },
+                { name: "Shoes", category: "fashion", icon: "bi-bag-check" },
+                { name: "Eid Gifts", category: "flowers and gifts", icon: "bi-gift" },
+                { name: "Children's Toys", category: "kids", icon: "bi-controller" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Jewelry", category: "fashion", icon: "bi-gem" },
+                { name: "Sweets & Chocolates", category: "groceries", icon: "bi-cake2" }
+            ]
+        },
+        {
+            name: "Eid al-Adha",
+            dates: { 2024: "2024-06-16", 2025: "2025-06-06", 2026: "2026-05-27" },
+            category: "religious",
+            duration: "4 days",
+            impact: "high",
+            description: "Feast of Sacrifice. High demand for meat, kitchen supplies, and travel.",
+            actions: "Stock kitchen items, BBQ supplies, and travel essentials",
+            suggestedCategories: ["groceries", "home and garden", "fashion", "kids"],
+            suggestedSubcategories: {
+                "groceries": ["supermarkets", "farm to table"],
+                "home and garden": ["kitchenwear", "appliances", "storage and organization"],
+                "fashion": ["casual wear", "footwear"],
+                "kids": ["toys and games", "baby travel"]
+            },
+            suggestedItems: [
+                { name: "Fresh Meat", category: "groceries", icon: "bi-basket" },
+                { name: "Kitchen Knives Set", category: "home and garden", icon: "bi-scissors" },
+                { name: "BBQ Grill", category: "home and garden", icon: "bi-fire" },
+                { name: "Food Storage Containers", category: "home and garden", icon: "bi-box" },
+                { name: "New Clothes", category: "fashion", icon: "bi-bag" },
+                { name: "Children's Toys", category: "kids", icon: "bi-controller" },
+                { name: "Freezer", category: "home and garden", icon: "bi-snow" },
+                { name: "Cookware Set", category: "home and garden", icon: "bi-cup-hot" }
+            ]
+        },
+        {
+            name: "Islamic New Year",
+            dates: { 2024: "2024-07-07", 2025: "2025-06-26", 2026: "2026-06-16" },
+            category: "religious",
+            duration: "1 day",
+            impact: "low",
+            description: "First day of Muharram. Public holiday.",
+            actions: "Minimal business impact",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "Prophet's Birthday (Mawlid)",
+            dates: { 2024: "2024-09-15", 2025: "2025-09-04", 2026: "2026-08-25" },
+            category: "religious",
+            duration: "1 day",
+            impact: "medium",
+            description: "Celebration with sweets and festivities.",
+            actions: "Stock traditional sweets (halawet el-moulid)",
+            suggestedCategories: ["groceries", "restaurants"],
+            suggestedSubcategories: {
+                "groceries": ["supermarkets", "specialty foods"],
+                "restaurants": ["desserts", "bakery and cakes", "egyptian"]
+            }
+        },
+
+        // National Holidays
+        {
+            name: "Coptic Christmas",
+            dates: { 2024: "2024-01-07", 2025: "2025-01-07", 2026: "2026-01-07" },
+            category: "national",
+            duration: "1 day",
+            impact: "medium",
+            description: "Egyptian Coptic Christmas celebration.",
+            actions: "Stock Christmas decorations and gift items",
+            suggestedCategories: ["flowers and gifts", "home and garden", "fashion", "beauty", "kids"],
+            suggestedSubcategories: {
+                "flowers and gifts": ["flowers", "gifts"],
+                "home and garden": ["home decor", "lighting"],
+                "fashion": ["casual wear", "accessories", "jewelry"],
+                "beauty": ["fragrances", "cosmetics", "skincare"],
+                "kids": ["toys and games"]
+            }
+        },
+        {
+            name: "Revolution Day (Jan 25)",
+            dates: { 2024: "2024-01-25", 2025: "2025-01-25", 2026: "2026-01-25" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "Anniversary of 2011 revolution. Public holiday.",
+            actions: "Normal operations, some closures",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "Sinai Liberation Day",
+            dates: { 2024: "2024-04-25", 2025: "2025-04-25", 2026: "2026-04-25" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "Celebrates return of Sinai to Egypt.",
+            actions: "Public holiday - plan for closures",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "Sham El-Nessim",
+            dates: { 2024: "2024-05-06", 2025: "2025-04-21", 2026: "2026-04-13" },
+            category: "national",
+            duration: "1 day",
+            impact: "medium",
+            description: "Spring festival. Outdoor activities and traditional food (feseekh, colored eggs).",
+            actions: "Stock picnic supplies, outdoor items, traditional foods",
+            suggestedCategories: ["groceries", "home and garden", "sports", "kids"],
+            suggestedSubcategories: {
+                "groceries": ["supermarkets", "specialty foods", "farm to table"],
+                "home and garden": ["gardening and outdoor", "storage and organization"],
+                "sports": ["outdoor sports", "recreational activities"],
+                "kids": ["toys and games", "outdoor toy"]
+            }
+        },
+        {
+            name: "Labour Day",
+            dates: { 2024: "2024-05-01", 2025: "2025-05-01", 2026: "2026-05-01" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "International Workers' Day.",
+            actions: "Public holiday",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "June 30 Revolution Day",
+            dates: { 2024: "2024-06-30", 2025: "2025-06-30", 2026: "2026-06-30" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "Anniversary of 2013 protests.",
+            actions: "Public holiday",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "July 23 Revolution Day",
+            dates: { 2024: "2024-07-23", 2025: "2025-07-23", 2026: "2026-07-23" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "National Day celebrating 1952 revolution.",
+            actions: "Public holiday",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+        {
+            name: "Armed Forces Day",
+            dates: { 2024: "2024-10-06", 2025: "2025-10-06", 2026: "2026-10-06" },
+            category: "national",
+            duration: "1 day",
+            impact: "low",
+            description: "Commemorates 1973 October War.",
+            actions: "Public holiday",
+            suggestedCategories: [],
+            suggestedSubcategories: {}
+        },
+
+        // Shopping Seasons
+        {
+            name: "Valentine's Day",
+            dates: { 2024: "2024-02-14", 2025: "2025-02-14", 2026: "2026-02-14" },
+            category: "shopping",
+            duration: "1 week",
+            impact: "medium",
+            description: "Popular among young Egyptians. Gifts, chocolates, flowers.",
+            actions: "Stock romantic gifts, chocolates, flowers, jewelry",
+            suggestedCategories: ["flowers and gifts", "fashion", "beauty", "groceries", "restaurants"],
+            suggestedSubcategories: {
+                "flowers and gifts": ["flowers", "gifts"],
+                "fashion": ["jewelry", "accessories", "designer wear"],
+                "beauty": ["fragrances", "cosmetics", "skincare"],
+                "groceries": ["specialty foods"],
+                "restaurants": ["cafes", "desserts", "italian", "french"]
+            },
+            suggestedItems: [
+                { name: "Red Roses Bouquet", category: "flowers and gifts", icon: "bi-flower1" },
+                { name: "Chocolate Box", category: "groceries", icon: "bi-gift" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Jewelry Set", category: "fashion", icon: "bi-gem" },
+                { name: "Teddy Bear", category: "flowers and gifts", icon: "bi-heart" },
+                { name: "Greeting Card", category: "flowers and gifts", icon: "bi-envelope-heart" },
+                { name: "Cake", category: "restaurants", icon: "bi-cake2" },
+                { name: "Watch", category: "fashion", icon: "bi-watch" }
+            ]
+        },
+        {
+            name: "Mother's Day",
+            dates: { 2024: "2024-03-21", 2025: "2025-03-21", 2026: "2026-03-21" },
+            category: "shopping",
+            duration: "1 week",
+            impact: "high",
+            description: "Major shopping event in Egypt. Gifts for mothers.",
+            actions: "Heavy promotion on gifts, perfumes, home items, jewelry",
+            suggestedCategories: ["flowers and gifts", "beauty", "fashion", "home and garden", "electronics"],
+            suggestedSubcategories: {
+                "flowers and gifts": ["flowers", "gifts"],
+                "beauty": ["fragrances", "skincare", "cosmetics"],
+                "fashion": ["jewelry", "accessories", "designer wear"],
+                "home and garden": ["appliances", "home decor", "kitchenwear"],
+                "electronics": ["phones", "electronics"]
+            },
+            suggestedItems: [
+                { name: "Flower Bouquet", category: "flowers and gifts", icon: "bi-flower1" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Gold Jewelry", category: "fashion", icon: "bi-gem" },
+                { name: "Skincare Set", category: "beauty", icon: "bi-stars" },
+                { name: "Handbag", category: "fashion", icon: "bi-bag" },
+                { name: "Kitchen Appliance", category: "home and garden", icon: "bi-cup-hot" },
+                { name: "Smartphone", category: "electronics", icon: "bi-phone" },
+                { name: "Watch", category: "fashion", icon: "bi-watch" }
+            ]
+        },
+        {
+            name: "Back to School",
+            dates: { 2024: "2024-09-15", 2025: "2025-09-15", 2026: "2026-09-15" },
+            category: "shopping",
+            duration: "3-4 weeks",
+            impact: "high",
+            description: "School supplies, uniforms, and electronics peak season.",
+            actions: "Stock school supplies, bags, uniforms, electronics from mid-August",
+            suggestedCategories: ["stationary", "fashion", "electronics", "kids"],
+            suggestedSubcategories: {
+                "stationary": ["school supplies", "office supplies", "stationary supplies", "arts and crafts"],
+                "fashion": ["casual wear", "footwear", "accessories"],
+                "electronics": ["computers", "phones", "electronics"],
+                "kids": ["toys and games", "baby care"]
+            },
+            suggestedItems: [
+                { name: "School Backpack", category: "fashion", icon: "bi-backpack" },
+                { name: "Notebook Set", category: "stationary", icon: "bi-journal" },
+                { name: "Pencil Case", category: "stationary", icon: "bi-pencil" },
+                { name: "Laptop", category: "electronics", icon: "bi-laptop" },
+                { name: "School Uniform", category: "fashion", icon: "bi-person" },
+                { name: "School Shoes", category: "fashion", icon: "bi-bag" },
+                { name: "Calculator", category: "electronics", icon: "bi-calculator" },
+                { name: "Tablet", category: "electronics", icon: "bi-tablet" }
+            ]
+        },
+        {
+            name: "Black Friday / White Friday",
+            dates: { 2024: "2024-11-29", 2025: "2025-11-28", 2026: "2026-11-27" },
+            category: "shopping",
+            duration: "1 week",
+            impact: "high",
+            description: "Major sales event. Electronics, fashion, and home items.",
+            actions: "Prepare inventory and promotions 2 weeks ahead",
+            suggestedCategories: ["electronics", "fashion", "home and garden", "beauty", "kids"],
+            suggestedSubcategories: {
+                "electronics": ["phones", "computers", "electronics", "photography"],
+                "fashion": ["casual wear", "designer wear", "footwear", "jewelry", "accessories"],
+                "home and garden": ["appliances", "furniture", "home decor"],
+                "beauty": ["fragrances", "skincare", "cosmetics"],
+                "kids": ["toys and games", "baby care"]
+            },
+            suggestedItems: [
+                { name: "Smartphone", category: "electronics", icon: "bi-phone" },
+                { name: "Laptop", category: "electronics", icon: "bi-laptop" },
+                { name: "TV", category: "electronics", icon: "bi-tv" },
+                { name: "Headphones", category: "electronics", icon: "bi-headphones" },
+                { name: "Fashion Clothing", category: "fashion", icon: "bi-bag" },
+                { name: "Home Appliances", category: "home and garden", icon: "bi-house" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Toys", category: "kids", icon: "bi-controller" }
+            ]
+        },
+        {
+            name: "Singles' Day (11.11)",
+            dates: { 2024: "2024-11-11", 2025: "2025-11-11", 2026: "2026-11-11" },
+            category: "shopping",
+            duration: "1-3 days",
+            impact: "medium",
+            description: "Growing e-commerce sales event.",
+            actions: "Online promotions and deals",
+            suggestedCategories: ["electronics", "fashion", "beauty", "home and garden"],
+            suggestedSubcategories: {
+                "electronics": ["phones", "electronics", "computers"],
+                "fashion": ["casual wear", "accessories", "footwear"],
+                "beauty": ["skincare", "cosmetics", "fragrances"],
+                "home and garden": ["home decor", "appliances"]
+            }
+        },
+        {
+            name: "Year-End Sales",
+            dates: { 2024: "2024-12-20", 2025: "2025-12-20", 2026: "2026-12-20" },
+            category: "shopping",
+            duration: "2 weeks",
+            impact: "high",
+            description: "End of year clearance and New Year shopping.",
+            actions: "Clearance sales, New Year party supplies",
+            suggestedCategories: ["fashion", "electronics", "home and garden", "kids", "flowers and gifts"],
+            suggestedSubcategories: {
+                "fashion": ["casual wear", "designer wear", "footwear", "accessories"],
+                "electronics": ["phones", "computers", "electronics"],
+                "home and garden": ["home decor", "appliances", "furniture"],
+                "kids": ["toys and games"],
+                "flowers and gifts": ["gifts"]
+            }
+        },
+
+        // Seasonal Events
+        {
+            name: "Summer Season Begins",
+            dates: { 2024: "2024-06-01", 2025: "2025-06-01", 2026: "2026-06-01" },
+            category: "seasonal",
+            duration: "3 months",
+            impact: "high",
+            description: "Peak for travel, beach items, AC, summer clothing.",
+            actions: "Stock summer wear, beach accessories, cooling products",
+            suggestedCategories: ["fashion", "home and garden", "sports", "beauty"],
+            suggestedSubcategories: {
+                "fashion": ["beach wear", "swimwear", "casual wear", "footwear", "eyewear", "accessories"],
+                "home and garden": ["appliances", "gardening and outdoor"],
+                "sports": ["water sports", "outdoor sports", "recreational activities"],
+                "beauty": ["skincare", "haircare"]
+            }
+        },
+        {
+            name: "School Summer Vacation",
+            dates: { 2024: "2024-06-15", 2025: "2025-06-15", 2026: "2026-06-15" },
+            category: "seasonal",
+            duration: "3 months",
+            impact: "high",
+            description: "Family travel and entertainment peak season.",
+            actions: "Stock travel items, kids activities, summer camps supplies",
+            suggestedCategories: ["kids", "entertainment", "sports", "fashion"],
+            suggestedSubcategories: {
+                "kids": ["toys and games", "baby travel"],
+                "entertainment": ["gaming", "books"],
+                "sports": ["outdoor sports", "water sports", "recreational activities"],
+                "fashion": ["beach wear", "swimwear", "casual wear", "footwear"]
+            }
+        },
+        {
+            name: "Winter Season",
+            dates: { 2024: "2024-12-01", 2025: "2025-12-01", 2026: "2026-12-01" },
+            category: "seasonal",
+            duration: "3 months",
+            impact: "medium",
+            description: "Heaters, winter clothing, hot beverages demand.",
+            actions: "Stock winter clothing, heaters, blankets",
+            suggestedCategories: ["fashion", "home and garden", "groceries", "restaurants"],
+            suggestedSubcategories: {
+                "fashion": ["casual wear", "footwear", "accessories"],
+                "home and garden": ["appliances", "bed and bath", "home decor"],
+                "groceries": ["supermarkets", "specialty foods"],
+                "restaurants": ["cafes", "egyptian", "middle eastern"]
+            }
+        },
+        {
+            name: "Wedding Season (Spring)",
+            dates: { 2024: "2024-04-01", 2025: "2025-04-01", 2026: "2026-04-01" },
+            category: "seasonal",
+            duration: "2 months",
+            impact: "medium",
+            description: "Peak wedding season after Ramadan.",
+            actions: "Stock wedding gifts, home appliances, furniture",
+            suggestedCategories: ["home and garden", "fashion", "flowers and gifts", "beauty", "electronics"],
+            suggestedSubcategories: {
+                "home and garden": ["appliances", "furniture", "bed and bath", "kitchenwear", "home decor"],
+                "fashion": ["designer wear", "jewelry", "footwear", "accessories"],
+                "flowers and gifts": ["flowers", "gifts"],
+                "beauty": ["fragrances", "cosmetics", "skincare"],
+                "electronics": ["electronics", "phones"]
+            }
+        },
+        {
+            name: "Wedding Season (Fall)",
+            dates: { 2024: "2024-09-01", 2025: "2025-09-01", 2026: "2026-09-01" },
+            category: "seasonal",
+            duration: "2 months",
+            impact: "medium",
+            description: "Second wedding peak season.",
+            actions: "Stock wedding gifts, home appliances, furniture",
+            suggestedCategories: ["home and garden", "fashion", "flowers and gifts", "beauty", "electronics"],
+            suggestedSubcategories: {
+                "home and garden": ["appliances", "furniture", "bed and bath", "kitchenwear", "home decor"],
+                "fashion": ["designer wear", "jewelry", "footwear", "accessories"],
+                "flowers and gifts": ["flowers", "gifts"],
+                "beauty": ["fragrances", "cosmetics", "skincare"],
+                "electronics": ["electronics", "phones"]
+            }
+        }
+    ];
+
+    let currentView = 'timeline';
+    let selectedYear = Number("{{ current_year }}");
+
+    function getEventDate(event) {
+        return event.dates[selectedYear] || event.dates[Number("{{ current_year }}")];
+    }
+
+    function updateCurrentInfo() {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+
+        // Current season
+        let season = '';
+        if (currentMonth >= 5 && currentMonth <= 8) season = 'Summer Peak';
+        else if (currentMonth >= 2 && currentMonth <= 4) season = 'Spring/Ramadan';
+        else if (currentMonth >= 9 && currentMonth <= 10) season = 'Back to School';
+        else season = 'Winter/Holiday';
+        document.getElementById('current-season').textContent = season;
+
+        // Find next major event
+        const upcomingEvents = egyptEvents
+            .map(e => ({ ...e, date: new Date(getEventDate(e)) }))
+            .filter(e => e.date > today && e.impact === 'high')
+            .sort((a, b) => a.date - b.date);
+
+        if (upcomingEvents.length > 0) {
+            const next = upcomingEvents[0];
+            document.getElementById('next-event').textContent = next.name;
+            const daysUntil = Math.ceil((next.date - today) / (1000 * 60 * 60 * 24));
+            document.getElementById('days-until').textContent = daysUntil + ' days';
+        }
+
+        // Peak shopping period
+        const peakMonths = [2, 3, 8, 10, 11]; // March, April, Sept, Nov, Dec (0-indexed)
+        if (peakMonths.includes(currentMonth)) {
+            document.getElementById('peak-shopping').textContent = 'Active Now';
+            document.getElementById('peak-shopping').classList.add('text-success');
+        } else {
+            document.getElementById('peak-shopping').textContent = 'Off-Peak';
+        }
+    }
+
+    function renderTimeline() {
+        const timeline = document.getElementById('events-timeline');
+        const category = document.getElementById('category_select').value;
+
+        let events = egyptEvents
+            .map((e, idx) => ({ ...e, dateObj: new Date(getEventDate(e)), originalIndex: idx }))
+            .sort((a, b) => a.dateObj - b.dateObj);
+
+        if (category) {
+            events = events.filter(e => e.category === category);
+        }
+
+        timeline.innerHTML = events.map((event, index) => `
+            <div class="timeline-item">
+                <div class="timeline-content ${event.category} clickable" onclick="openEventModal(${event.originalIndex})">
+                    <h6>${event.name}</h6>
+                    <div class="date"><i class="bi bi-calendar3 me-1"></i>${formatDate(event.dateObj)}</div>
+                    <span class="badge-cat badge-${event.category}">${event.category}</span>
+                    <p class="small text-muted mt-2 mb-0">${event.description}</p>
+                    ${event.suggestedCategories && event.suggestedCategories.length > 0 ?
+                        `<div class="mt-2"><small class="text-primary"><i class="bi bi-lightbulb me-1"></i>Click for category suggestions</small></div>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        document.getElementById('events-count').textContent = `${events.length} events`;
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const category = document.getElementById('category_select').value;
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+
+        let events = egyptEvents.map((e, idx) => ({ ...e, dateObj: new Date(getEventDate(e)), originalIndex: idx }));
+        if (category) {
+            events = events.filter(e => e.category === category);
+        }
+
+        grid.innerHTML = months.map((month, index) => {
+            const monthEvents = events.filter(e => e.dateObj.getMonth() === index);
+            return `
+                <div class="col-md-3 col-sm-6">
+                    <div class="month-card">
+                        <h6>${month}</h6>
+                        ${monthEvents.length > 0 ? monthEvents.map(e => `
+                            <div class="month-event clickable" style="border-left-color: ${getCategoryColor(e.category)}" onclick="openEventModal(${e.originalIndex})">
+                                <strong>${e.name}</strong><br>
+                                <small class="text-muted">${e.dateObj.getDate()} ${month}</small>
+                            </div>
+                        `).join('') : '<p class="small text-muted">No events</p>'}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('events-tbody');
+        const category = document.getElementById('category_select').value;
+
+        let events = egyptEvents
+            .map((e, idx) => ({ ...e, dateObj: new Date(getEventDate(e)), originalIndex: idx }))
+            .sort((a, b) => a.dateObj - b.dateObj);
+
+        if (category) {
+            events = events.filter(e => e.category === category);
+        }
+
+        tbody.innerHTML = events.map(event => `
+            <tr class="clickable" onclick="openEventModal(${event.originalIndex})">
+                <td>
+                    <strong>${event.name}</strong>
+                    <p class="small text-muted mb-0">${event.description}</p>
+                    ${event.suggestedCategories && event.suggestedCategories.length > 0 ?
+                        `<small class="text-primary"><i class="bi bi-lightbulb me-1"></i>${event.suggestedCategories.length} suggested categories</small>` : ''}
+                </td>
+                <td style="white-space: nowrap;">${formatDate(event.dateObj)}</td>
+                <td><span class="badge-cat badge-${event.category}">${event.category}</span></td>
+                <td>${event.duration}</td>
+                <td><span class="impact-${event.impact}">${event.impact.toUpperCase()}</span></td>
+                <td class="small">${event.actions}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('events-count').textContent = `${events.length} events`;
+    }
+
+    function getCategoryColor(category) {
+        const colors = {
+            religious: '#7c3aed',
+            national: '#059669',
+            shopping: '#dc2626',
+            seasonal: '#f59e0b'
+        };
+        return colors[category] || '#4f46e5';
+    }
+
+    function formatDate(date) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function setView(view, btn) {
+        currentView = view;
+        document.querySelectorAll('.card-header .btn-group .btn').forEach(b => {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+
+        document.getElementById('timeline-view').style.display = view === 'timeline' ? 'block' : 'none';
+        document.getElementById('calendar-view').style.display = view === 'calendar' ? 'block' : 'none';
+    }
+
+    function updateCalendar() {
+        selectedYear = parseInt(document.getElementById('year_select').value);
+        renderAll();
+    }
+
+    function filterEvents() {
+        renderAll();
+    }
+
+    function renderAll() {
+        updateCurrentInfo();
+        renderTimeline();
+        renderCalendar();
+        renderTable();
+    }
+
+    // Modal Functions
+    let currentEvent = null;
+    let eventModal = null;
+
+    function getCategoryChipClass(cat) {
+        const classMap = {
+            'fashion': 'fashion',
+            'beauty': 'beauty',
+            'electronics': 'electronics',
+            'groceries': 'groceries',
+            'restaurants': 'restaurants',
+            'home and garden': 'home',
+            'kids': 'kids',
+            'sports': 'sports',
+            'stationary': 'stationary',
+            'flowers and gifts': 'flowers',
+            'entertainment': 'entertainment',
+            'health and nutrition': 'health',
+            'pharmacies': 'pharmacies',
+            'automotive': 'automotive',
+            'pet care': 'pet'
+        };
+        return classMap[cat] || 'fashion';
+    }
+
+    function openEventModal(eventIndex) {
+        currentEvent = egyptEvents[eventIndex];
+        const eventDate = new Date(getEventDate(currentEvent));
+
+        // Populate modal header info
+        document.getElementById('modal-event-name').textContent = currentEvent.name;
+        document.getElementById('modal-event-description').textContent = currentEvent.description;
+        document.getElementById('modal-event-date').textContent = formatDate(eventDate);
+        document.getElementById('modal-event-duration').textContent = currentEvent.duration;
+        document.getElementById('modal-event-actions').textContent = currentEvent.actions;
+
+        // Populate suggested categories
+        const categoriesContainer = document.getElementById('modal-categories');
+        if (currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+            categoriesContainer.innerHTML = currentEvent.suggestedCategories.map(cat => {
+                const subcats = currentEvent.suggestedSubcategories[cat] || [];
+                return `
+                    <div class="category-chip ${getCategoryChipClass(cat)}" onclick="selectModalCategory('${cat}')" title="${subcats.join(', ')}">
+                        ${cat}
+                        ${subcats.length > 0 ? `<span class="badge bg-dark ms-1">${subcats.length}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            categoriesContainer.innerHTML = '<p class="text-muted small mb-0">No specific category suggestions for this event</p>';
+        }
+
+        // Populate suggested items (NEW)
+        const suggestedItemsContainer = document.getElementById('suggested-items-container');
+        const suggestedItemsCard = document.getElementById('suggested-items-card');
+        if (currentEvent.suggestedItems && currentEvent.suggestedItems.length > 0) {
+            suggestedItemsCard.style.display = 'block';
+            suggestedItemsContainer.innerHTML = `
+                <div class="d-flex flex-wrap gap-2">
+                    ${currentEvent.suggestedItems.map(item => `
+                        <div class="suggested-item-chip" onclick="selectModalCategory('${item.category}')" title="Category: ${item.category}">
+                            <i class="${item.icon || 'bi-box'}"></i>
+                            <span>${item.name}</span>
+                            <span class="item-category">(${item.category})</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            suggestedItemsCard.style.display = 'none';
+        }
+
+        // Populate category dropdown
+        const categorySelect = document.getElementById('modal_category_select');
+        categorySelect.innerHTML = '<option value="">Select a category...</option>';
+        if (currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+            currentEvent.suggestedCategories.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+            categorySelect.innerHTML += '<option disabled>───────────</option>';
+        }
+        shoppingCategories.forEach(cat => {
+            if (!currentEvent.suggestedCategories || !currentEvent.suggestedCategories.includes(cat)) {
+                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            }
+        });
+
+        // Set default date range (around the event date)
+        const startDate = new Date(eventDate);
+        startDate.setDate(startDate.getDate() - 30);
+        const endDate = new Date(eventDate);
+        endDate.setDate(endDate.getDate() + 7);
+
+        document.getElementById('modal_start_date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('modal_end_date').value = endDate.toISOString().split('T')[0];
+
+        // Reset containers
+        document.getElementById('vendors-container').innerHTML = '<p class="text-muted text-center mb-0">Loading...</p>';
+        document.getElementById('items-container').innerHTML = '<p class="text-muted text-center mb-0">Loading...</p>';
+        document.getElementById('vendors-count').textContent = '0 vendors';
+        document.getElementById('items-count').textContent = '0 items';
+
+        // Reset subcategory dropdown
+        document.getElementById('modal_subcategory_select').innerHTML = '<option value="">All subcategories</option>';
+        document.getElementById('modal_subcategory_select').disabled = true;
+
+        // Show modal
+        if (!eventModal) {
+            eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+        }
+        eventModal.show();
+
+        // Auto-fetch data if there are suggested categories
+        if (currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+            fetchVendorsAndItems();
+        } else {
+            document.getElementById('vendors-container').innerHTML = '<p class="text-muted text-center mb-0">No suggested categories for this event. Select a category and click Search.</p>';
+            document.getElementById('items-container').innerHTML = '<p class="text-muted text-center mb-0">No suggested categories for this event. Select a category and click Search.</p>';
+        }
+    }
+
+    function selectModalCategory(category) {
+        document.getElementById('modal_category_select').value = category;
+        onModalCategoryChange();
+
+        // Highlight selected chip
+        document.querySelectorAll('.category-chip').forEach(chip => chip.classList.remove('selected'));
+        event.target.closest('.category-chip').classList.add('selected');
+    }
+
+    function onModalCategoryChange() {
+        const category = document.getElementById('modal_category_select').value;
+        const subcategorySelect = document.getElementById('modal_subcategory_select');
+
+        if (category && shoppingSubcategoryMap[category]) {
+            subcategorySelect.disabled = false;
+            subcategorySelect.innerHTML = '<option value="">All subcategories</option>';
+
+            // If event has suggested subcategories for this category, show them first
+            const suggestedSubcats = currentEvent?.suggestedSubcategories?.[category] || [];
+            if (suggestedSubcats.length > 0) {
+                suggestedSubcats.forEach(subcat => {
+                    subcategorySelect.innerHTML += `<option value="${subcat}">${subcat} (recommended)</option>`;
+                });
+                subcategorySelect.innerHTML += '<option disabled>───────────</option>';
+            }
+
+            // Add remaining subcategories
+            shoppingSubcategoryMap[category].forEach(subcat => {
+                if (!suggestedSubcats.includes(subcat)) {
+                    subcategorySelect.innerHTML += `<option value="${subcat}">${subcat}</option>`;
+                }
+            });
+        } else {
+            subcategorySelect.disabled = true;
+            subcategorySelect.innerHTML = '<option value="">All subcategories</option>';
+        }
+    }
+
+    async function fetchVendorsAndItems() {
+        const category = document.getElementById('modal_category_select').value;
+        const startDate = document.getElementById('modal_start_date').value;
+        const endDate = document.getElementById('modal_end_date').value;
+
+        if (!startDate || !endDate) {
+            alert('Please select a date range');
+            return;
+        }
+
+        // Show loading
+        document.getElementById('vendors-loading').style.display = 'block';
+        document.getElementById('items-loading').style.display = 'block';
+        document.getElementById('vendors-container').innerHTML = '';
+        document.getElementById('items-container').innerHTML = '';
+
+        try {
+            // Fetch vendors and items in parallel
+            const [vendorsResponse, itemsResponse] = await Promise.all([
+                fetch(`/api/top-vendors?start_date=${startDate}&end_date=${endDate}`),
+                fetch(`/api/top-items?start_date=${startDate}&end_date=${endDate}`)
+            ]);
+
+            const vendorsData = await vendorsResponse.json();
+            const itemsData = await itemsResponse.json();
+
+            // Hide loading
+            document.getElementById('vendors-loading').style.display = 'none';
+            document.getElementById('items-loading').style.display = 'none';
+
+            // Filter by category
+            let vendors = vendorsData.data || [];
+            let items = itemsData.data || [];
+
+            if (category) {
+                // Filter by specific selected category
+                vendors = vendors.filter(v => v.vendor_shopcat === category);
+                items = items.filter(i => i.vendor_shopcat === category);
+            } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+                // Filter by ALL suggested categories for this event
+                const suggestedCats = currentEvent.suggestedCategories;
+                vendors = vendors.filter(v => suggestedCats.includes(v.vendor_shopcat));
+                items = items.filter(i => suggestedCats.includes(i.vendor_shopcat));
+            }
+
+            // Render vendors
+            renderModalVendors(vendors, category);
+            renderModalItems(items, category);
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            document.getElementById('vendors-loading').style.display = 'none';
+            document.getElementById('items-loading').style.display = 'none';
+            document.getElementById('vendors-container').innerHTML = `<p class="text-danger text-center">Error loading vendors: ${error.message}</p>`;
+            document.getElementById('items-container').innerHTML = `<p class="text-danger text-center">Error loading items: ${error.message}</p>`;
+        }
+    }
+
+    function renderModalVendors(vendors, filterCategory) {
+        const container = document.getElementById('vendors-container');
+
+        // Show filter info
+        let filterInfo = '';
+        if (filterCategory) {
+            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterCategory}</strong></small></div>`;
+        } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+            filterInfo = `<div class="alert alert-success py-2 mb-3"><small><i class="bi bi-lightbulb me-1"></i>Showing vendors from suggested categories: <strong>${currentEvent.suggestedCategories.join(', ')}</strong></small></div>`;
+        }
+
+        document.getElementById('vendors-count').textContent = `${vendors.length} vendors`;
+
+        if (vendors.length === 0) {
+            container.innerHTML = filterInfo + '<p class="text-muted text-center mb-0">No vendors found for the selected criteria</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            ${filterInfo}
+            <div class="row g-3">
+                ${vendors.slice(0, 12).map(vendor => `
+                    <div class="col-md-4 col-sm-6">
+                        <div class="vendor-card d-flex align-items-center gap-3">
+                            <img src="${vendor.vendor_image || '/static/placeholder.png'}" alt="${vendor.vendor_name}" class="vendor-img" onerror="this.src='/static/placeholder.png'">
+                            <div class="flex-grow-1 min-w-0">
+                                <h6 class="mb-1 text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown Vendor'}</h6>
+                                <span class="subcategory-chip">${vendor.vendor_shopcat || 'N/A'}</span>
+                                <div class="small text-muted mt-1">
+                                    <span class="me-2"><i class="bi bi-bag me-1"></i>${vendor.orders_count} orders</span>
+                                    <span><i class="bi bi-box me-1"></i>${vendor.total_qty} qty</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ${vendors.length > 12 ? `<p class="text-muted text-center mt-3 mb-0">Showing 12 of ${vendors.length} vendors</p>` : ''}
+        `;
+    }
+
+    function formatPrice(price) {
+        if (price == null || price === '' || price === undefined) return 'N/A';
+        const num = parseFloat(price);
+        if (isNaN(num)) return 'N/A';
+        return 'EGP ' + num.toFixed(2);
+    }
+
+    function renderModalItems(items, filterCategory) {
+        const container = document.getElementById('items-container');
+
+        // Show filter info
+        let filterInfo = '';
+        if (filterCategory) {
+            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterCategory}</strong></small></div>`;
+        } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+            filterInfo = `<div class="alert alert-success py-2 mb-3"><small><i class="bi bi-lightbulb me-1"></i>Showing items from suggested categories: <strong>${currentEvent.suggestedCategories.join(', ')}</strong></small></div>`;
+        }
+
+        document.getElementById('items-count').textContent = `${items.length} items`;
+
+        if (items.length === 0) {
+            container.innerHTML = filterInfo + '<p class="text-muted text-center mb-0">No items found for the selected criteria</p>';
+            return;
+        }
+
+        const itemsHtml = items.slice(0, 12).map(item => {
+            const itemName = item.item_name || 'Unknown Item';
+            const vendorName = item.vendor_name || 'Unknown Vendor';
+            const vendorCat = item.vendor_shopcat || '';
+            const itemImage = item.item_image || '/static/placeholder.png';
+            const priceDisplay = formatPrice(item.price);
+            const qtyDisplay = item.total_qty || 0;
+
+            return `
+                <div class="col-md-4 col-sm-6">
+                    <div class="item-card d-flex align-items-center gap-3">
+                        <img src="${itemImage}" alt="${itemName}" class="item-img" onerror="this.src='/static/placeholder.png'">
+                        <div class="flex-grow-1 min-w-0">
+                            <h6 class="mb-1 text-truncate small" title="${itemName}">${itemName}</h6>
+                            <div class="small text-muted">${vendorName}</div>
+                            <span class="subcategory-chip">${vendorCat}</span>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="fw-semibold text-success">${priceDisplay}</span>
+                                <span class="small text-muted">${qtyDisplay} sold</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            ${filterInfo}
+            <div class="row g-3">
+                ${itemsHtml}
+            </div>
+            ${items.length > 12 ? `<p class="text-muted text-center mt-3 mb-0">Showing 12 of ${items.length} items</p>` : ''}
+        `;
+    }
+
+    document.addEventListener('DOMContentLoaded', renderAll);
+</script>
+{% endblock %}

@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Botit Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex align-items-center mb-2">
+        <img src="/static/botit-logo.png" alt="Botit" style="width: 48px; height: 48px; border-radius: 10px; margin-right: 16px;">
+        <div>
+            <h2 class="mb-1">Pipeline Dashboard</h2>
+            <p class="mb-0">Overview of top vendors and items based on order data</p>
+        </div>
+    </div>
+</div>
+
+<div class="filter-card">
+    <div class="row align-items-end g-3">
+        <div class="col-md-12 mb-2">
+            <label class="form-label fw-semibold">Quick Date Range</label>
+            <div class="btn-group date-slicer" role="group">
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(2)">Last 2 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(7)">Last 7 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(14)">Last 14 Days</button>
+                <button type="button" class="btn btn-outline-secondary active" onclick="setDateRange(30)">Last 30 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(60)">Last 60 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(90)">Last 90 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(180)">Last 6 Months</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(365)">Last Year</button>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <label for="start_date" class="form-label fw-semibold">Start Date</label>
+            <input type="date" class="form-control" id="start_date" value="{{ default_start }}">
+        </div>
+        <div class="col-md-2">
+            <label for="end_date" class="form-label fw-semibold">End Date</label>
+            <input type="date" class="form-control" id="end_date" value="{{ default_end }}">
+        </div>
+        <div class="col-md-3">
+            <label for="category_filter" class="form-label fw-semibold">Category</label>
+            <select class="form-select" id="category_filter" onchange="filterByCategory()">
+                <option value="">All Categories</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary px-4" onclick="loadAllData()">
+                <i class="bi bi-funnel me-2"></i>Apply Filter
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Top Vendors Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-shop me-2"></i>Top Vendors</h5>
+                <button class="pipeline-toggle" onclick="togglePipeline('vendors')">
+                    <i class="bi bi-code-slash me-1"></i>Pipeline
+                </button>
+            </div>
+            <pre class="pipeline-code" id="vendors-pipeline"></pre>
+
+            <div class="loading-overlay" id="vendors-loading">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-3 text-muted">Loading vendors...</p>
+            </div>
+
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table" id="vendors-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Vendor</th>
+                            <th>Category</th>
+                            <th class="text-center">Orders</th>
+                            <th class="text-center">Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="p-3 border-top">
+                <small class="text-muted" id="vendors-count"></small>
+                <a href="/vendors" class="float-end small">View All <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Items Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-box-seam me-2"></i>Top Items</h5>
+                <button class="pipeline-toggle" onclick="togglePipeline('items')">
+                    <i class="bi bi-code-slash me-1"></i>Pipeline
+                </button>
+            </div>
+            <pre class="pipeline-code" id="items-pipeline"></pre>
+
+            <div class="loading-overlay" id="items-loading">
+                <div class="spinner-border" role="status"></div>
+                <p class="mt-3 text-muted">Loading items...</p>
+            </div>
+
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <table class="table" id="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Item</th>
+                            <th>Vendor</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-center">Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="p-3 border-top">
+                <small class="text-muted" id="items-count"></small>
+                <a href="/items" class="float-end small">View All <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .date-slicer .btn {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+    .date-slicer .btn.active {
+        background-color: #4f46e5;
+        border-color: #4f46e5;
+        color: white;
+    }
+</style>
+<script>
+    let vendorsPipelineVisible = false;
+    let itemsPipelineVisible = false;
+    let allVendorsData = [];
+    let allItemsData = [];
+
+    function togglePipeline(type) {
+        if (type === 'vendors') {
+            vendorsPipelineVisible = !vendorsPipelineVisible;
+            document.getElementById('vendors-pipeline').style.display = vendorsPipelineVisible ? 'block' : 'none';
+        } else {
+            itemsPipelineVisible = !itemsPipelineVisible;
+            document.getElementById('items-pipeline').style.display = itemsPipelineVisible ? 'block' : 'none';
+        }
+    }
+
+    function setDateRange(days) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - days);
+
+        document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+
+        // Update active button
+        document.querySelectorAll('.date-slicer .btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Reset category filter
+        document.getElementById('category_filter').value = '';
+
+        loadAllData();
+    }
+
+    function populateCategories() {
+        const vendorCats = allVendorsData.map(v => v.vendor_shopcat).filter(c => c);
+        const itemCats = allItemsData.map(i => i.vendor_shopcat).filter(c => c);
+        const categories = [...new Set([...vendorCats, ...itemCats])].sort();
+
+        const select = document.getElementById('category_filter');
+        select.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(cat => {
+            select.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+
+    function filterByCategory() {
+        const category = document.getElementById('category_filter').value;
+
+        let filteredVendors = allVendorsData;
+        let filteredItems = allItemsData;
+
+        if (category) {
+            filteredVendors = allVendorsData.filter(v => v.vendor_shopcat === category);
+            filteredItems = allItemsData.filter(i => i.vendor_shopcat === category);
+        }
+
+        renderVendorsTable(filteredVendors);
+        renderItemsTable(filteredItems);
+    }
+
+    function renderVendorsTable(data) {
+        const tbody = document.querySelector('#vendors-table tbody');
+        tbody.innerHTML = '';
+
+        const isValidUrl = (url) => url && typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'));
+        data.slice(0, 10).forEach((vendor, index) => {
+            const imgSrc = isValidUrl(vendor.vendor_image) ? vendor.vendor_image : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(vendor.vendor_name || 'V') + '&background=f1f5f9&color=475569&size=32';
+            tbody.innerHTML += `
+                <tr>
+                    <td><span class="rank-badge ${getRankClass(index)}">${index + 1}</span></td>
+                    <td>
+                        <div class="vendor-cell">
+                            <img src="${imgSrc}" alt="" style="width: 32px; height: 32px;" onerror="this.src='https://ui-avatars.com/api/?name=V&background=f1f5f9&color=475569&size=32'">
+                            <div class="info">
+                                <span class="name" style="font-size: 0.85rem;">${vendor.vendor_name || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge-category">${vendor.vendor_shopcat || 'N/A'}</span></td>
+                    <td class="text-center"><span class="metric">${formatNumber(vendor.orders_count)}</span></td>
+                    <td class="text-center"><span class="metric">${formatNumber(vendor.total_qty)}</span></td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('vendors-count').textContent = `${data.length} vendors found`;
+    }
+
+    function renderItemsTable(data) {
+        const tbody = document.querySelector('#items-table tbody');
+        tbody.innerHTML = '';
+
+        const isValidUrl = (url) => url && typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'));
+        data.slice(0, 10).forEach((item, index) => {
+            const itemImg = isValidUrl(item.item_image) ? item.item_image : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.item_name?.charAt(0) || 'I') + '&background=f1f5f9&color=475569&size=32';
+            tbody.innerHTML += `
+                <tr>
+                    <td><span class="rank-badge ${getRankClass(index)}">${index + 1}</span></td>
+                    <td>
+                        <div class="item-cell">
+                            <img src="${itemImg}" alt="" style="width: 32px; height: 32px;" onerror="this.src='https://ui-avatars.com/api/?name=I&background=f1f5f9&color=475569&size=32'">
+                            <div class="info">
+                                <span class="name" style="font-size: 0.85rem;">${item.item_name || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-size: 0.8rem; color: #64748b;">${item.vendor_name || 'N/A'}</td>
+                    <td class="text-end"><span class="metric">${formatCurrency(item.price)}</span></td>
+                    <td class="text-center"><span class="metric">${formatNumber(item.total_qty)}</span></td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('items-count').textContent = `${data.length} items found`;
+    }
+
+    function loadVendors() {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+
+        document.getElementById('vendors-loading').style.display = 'block';
+
+        fetch(`/api/top-vendors?start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('vendors-loading').style.display = 'none';
+
+                if (data.success) {
+                    document.getElementById('vendors-pipeline').textContent = formatPipeline(data.pipeline);
+                    allVendorsData = data.data;
+                    renderVendorsTable(allVendorsData);
+                    populateCategories();
+                } else {
+                    console.error('Error:', data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('vendors-loading').style.display = 'none';
+                console.error('Error:', error);
+            });
+    }
+
+    function loadItems() {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+
+        document.getElementById('items-loading').style.display = 'block';
+
+        fetch(`/api/top-items?start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('items-loading').style.display = 'none';
+
+                if (data.success) {
+                    document.getElementById('items-pipeline').textContent = formatPipeline(data.pipeline);
+                    allItemsData = data.data;
+                    renderItemsTable(allItemsData);
+                    populateCategories();
+                } else {
+                    console.error('Error:', data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('items-loading').style.display = 'none';
+                console.error('Error:', error);
+            });
+    }
+
+    function loadAllData() {
+        loadVendors();
+        loadItems();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAllData);
+</script>
+{% endblock %}

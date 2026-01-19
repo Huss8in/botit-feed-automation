@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}Top Items - Botit Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex align-items-center mb-2">
+        <img src="/static/botit-logo.png" alt="Botit" style="width: 48px; height: 48px; border-radius: 10px; margin-right: 16px;">
+        <div>
+            <h2 class="mb-1">Top Items</h2>
+            <p class="mb-0">Item performance ranked by quantity sold within the selected date range</p>
+        </div>
+    </div>
+</div>
+
+<div class="filter-card">
+    <div class="row align-items-end g-3">
+        <div class="col-md-12 mb-2">
+            <label class="form-label fw-semibold">Quick Date Range</label>
+            <div class="btn-group date-slicer" role="group">
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(2)">Last 2 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(7)">Last 7 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(14)">Last 14 Days</button>
+                <button type="button" class="btn btn-outline-secondary active" onclick="setDateRange(30)">Last 30 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(60)">Last 60 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(90)">Last 90 Days</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(180)">Last 6 Months</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setDateRange(365)">Last Year</button>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <label for="start_date" class="form-label fw-semibold">Start Date</label>
+            <input type="date" class="form-control" id="start_date" value="{{ default_start }}">
+        </div>
+        <div class="col-md-2">
+            <label for="end_date" class="form-label fw-semibold">End Date</label>
+            <input type="date" class="form-control" id="end_date" value="{{ default_end }}">
+        </div>
+        <div class="col-md-2">
+            <label for="category_filter" class="form-label fw-semibold">Category</label>
+            <select class="form-select" id="category_filter" onchange="filterData()">
+                <option value="">All Categories</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="sort_by" class="form-label fw-semibold">Sort By</label>
+            <select class="form-select" id="sort_by" onchange="sortData()">
+                <option value="total_qty" selected>Quantity</option>
+                <option value="orders_count">Orders</option>
+                <option value="users_count">Users</option>
+                <option value="price">Price</option>
+            </select>
+        </div>
+        <div class="col-md-1">
+            <label for="sort_order" class="form-label fw-semibold">Order</label>
+            <select class="form-select" id="sort_order" onchange="sortData()">
+                <option value="desc" selected>Desc</option>
+                <option value="asc">Asc</option>
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button class="btn btn-primary w-100" onclick="loadData()">
+                <i class="bi bi-funnel"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-box-seam"></i></div>
+        <div class="stat-label">Unique Items</div>
+        <div class="stat-value" id="total-items">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-receipt"></i></div>
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value" id="total-orders">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-people"></i></div>
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value" id="total-users">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-stack"></i></div>
+        <div class="stat-label">Total Quantity</div>
+        <div class="stat-value" id="total-qty">-</div>
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-header">
+        <h5><i class="bi bi-table me-2"></i>Items Pipeline Results</h5>
+        <button class="pipeline-toggle" onclick="togglePipeline()">
+            <i class="bi bi-code-slash me-1"></i>View Pipeline
+        </button>
+    </div>
+    <pre class="pipeline-code" id="pipeline-code"></pre>
+
+    <div class="loading-overlay" id="loading">
+        <div class="spinner-border" role="status"></div>
+        <p class="mt-3 text-muted">Loading item data...</p>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table" id="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Rank</th>
+                    <th>Item</th>
+                    <th>Item ID</th>
+                    <th>Vendor</th>
+                    <th>Vendor ID</th>
+                    <th>Category</th>
+                    <th class="text-end sortable" data-sort="price" onclick="setSortAndReload('price')">
+                        Price <i class="bi bi-arrow-down-up"></i>
+                    </th>
+                    <th class="text-center sortable" data-sort="total_qty" onclick="setSortAndReload('total_qty')">
+                        Quantity <i class="bi bi-arrow-down-up"></i>
+                    </th>
+                    <th class="text-center sortable" data-sort="orders_count" onclick="setSortAndReload('orders_count')">
+                        Orders <i class="bi bi-arrow-down-up"></i>
+                    </th>
+                    <th class="text-center sortable" data-sort="users_count" onclick="setSortAndReload('users_count')">
+                        Users <i class="bi bi-arrow-down-up"></i>
+                    </th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <i class="bi bi-inbox"></i>
+        <p>No items found for the selected date range</p>
+    </div>
+</div>
+
+<p id="data-count" class="text-muted small mt-3"></p>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .date-slicer .btn {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+    .date-slicer .btn.active {
+        background-color: #4f46e5;
+        border-color: #4f46e5;
+        color: white;
+    }
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+    .sortable:hover {
+        background: #e2e8f0;
+    }
+    .sortable.active {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+    .id-cell {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.75rem;
+        color: #64748b;
+        word-break: break-all;
+    }
+</style>
+<script>
+    let pipelineVisible = false;
+    let currentData = [];
+    let filteredData = [];
+
+    function togglePipeline() {
+        pipelineVisible = !pipelineVisible;
+        document.getElementById('pipeline-code').style.display = pipelineVisible ? 'block' : 'none';
+    }
+
+    function setDateRange(days) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - days);
+
+        document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+
+        // Update active button
+        document.querySelectorAll('.date-slicer .btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        loadData();
+    }
+
+    function populateCategories() {
+        const categories = [...new Set(currentData.map(item => item.vendor_shopcat).filter(c => c))].sort();
+        const select = document.getElementById('category_filter');
+        select.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(cat => {
+            select.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+
+    function filterData() {
+        const category = document.getElementById('category_filter').value;
+
+        if (category) {
+            filteredData = currentData.filter(item => item.vendor_shopcat === category);
+        } else {
+            filteredData = [...currentData];
+        }
+
+        sortData();
+    }
+
+    function setSortAndReload(field) {
+        const sortBySelect = document.getElementById('sort_by');
+        const sortOrderSelect = document.getElementById('sort_order');
+
+        if (sortBySelect.value === field) {
+            sortOrderSelect.value = sortOrderSelect.value === 'desc' ? 'asc' : 'desc';
+        } else {
+            sortBySelect.value = field;
+            sortOrderSelect.value = 'desc';
+        }
+
+        sortData();
+    }
+
+    function sortData() {
+        if (filteredData.length === 0 && currentData.length === 0) return;
+
+        const dataToSort = filteredData.length > 0 || document.getElementById('category_filter').value ? filteredData : currentData;
+        const sortBy = document.getElementById('sort_by').value;
+        const sortOrder = document.getElementById('sort_order').value;
+
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('active');
+            if (th.dataset.sort === sortBy) {
+                th.classList.add('active');
+            }
+        });
+
+        const sortedData = [...dataToSort].sort((a, b) => {
+            let aVal = a[sortBy] || 0;
+            let bVal = b[sortBy] || 0;
+
+            // Handle price as number
+            if (sortBy === 'price') {
+                aVal = parseFloat(aVal) || 0;
+                bVal = parseFloat(bVal) || 0;
+            }
+
+            return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+        });
+
+        renderTable(sortedData);
+        updateStats(sortedData);
+    }
+
+    function updateStats(data) {
+        let totalOrders = 0, totalUsers = 0, totalQty = 0;
+        data.forEach(item => {
+            totalOrders += item.orders_count || 0;
+            totalUsers += item.users_count || 0;
+            totalQty += item.total_qty || 0;
+        });
+
+        document.getElementById('total-items').textContent = formatNumber(data.length);
+        document.getElementById('total-orders').textContent = formatNumber(totalOrders);
+        document.getElementById('total-users').textContent = formatNumber(totalUsers);
+        document.getElementById('total-qty').textContent = formatNumber(totalQty);
+    }
+
+    function renderTable(data) {
+        const tbody = document.querySelector('#data-table tbody');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            document.getElementById('empty-state').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('empty-state').style.display = 'none';
+
+        data.forEach((item, index) => {
+            const isValidUrl = (url) => url && typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'));
+            const itemImg = isValidUrl(item.item_image) ? item.item_image : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.item_name?.charAt(0) || 'I') + '&background=f1f5f9&color=475569';
+            const vendorImg = isValidUrl(item.vendor_image) ? item.vendor_image : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.vendor_name?.charAt(0) || 'V') + '&background=f1f5f9&color=475569';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <span class="rank-badge ${getRankClass(index)}">${index + 1}</span>
+                    </td>
+                    <td>
+                        <div class="item-cell">
+                            <img src="${itemImg}" alt="${item.item_name || 'Item'}" onerror="this.src='https://ui-avatars.com/api/?name=I&background=f1f5f9&color=475569'">
+                            <div class="info">
+                                <span class="name">${item.item_name || 'Unknown Item'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="id-cell">${item.item_id || 'N/A'}</td>
+                    <td>
+                        <div class="vendor-cell">
+                            <img src="${vendorImg}" alt="${item.vendor_name || 'Vendor'}" onerror="this.src='https://ui-avatars.com/api/?name=V&background=f1f5f9&color=475569'" style="width: 32px; height: 32px;">
+                            <div class="info">
+                                <span class="name" style="font-size: 0.85rem;">${item.vendor_name || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="id-cell">${item.vendor_id || 'N/A'}</td>
+                    <td>
+                        <span class="badge-category">${item.vendor_shopcat || 'N/A'}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="metric">${formatCurrency(item.price)}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="metric">${formatNumber(item.total_qty)}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="metric">${formatNumber(item.orders_count)}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="metric">${formatNumber(item.users_count)}</span>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function loadData() {
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('empty-state').style.display = 'none';
+        document.querySelector('#data-table tbody').innerHTML = '';
+
+        fetch(`/api/top-items?start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+
+                if (data.success) {
+                    document.getElementById('pipeline-code').textContent = formatPipeline(data.pipeline);
+
+                    currentData = data.data;
+                    filteredData = [...currentData];
+
+                    // Populate category dropdown
+                    populateCategories();
+
+                    // Reset category filter
+                    document.getElementById('category_filter').value = '';
+
+                    updateStats(currentData);
+                    sortData();
+
+                    document.getElementById('data-count').textContent = `Showing ${data.count} items from ${data.date_range.start} to ${data.date_range.end}`;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                console.error('Error:', error);
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}
