@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}TikTok Trends - Botit Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex align-items-center mb-2">
+        <img src="/static/botit-logo.png" alt="Botit" style="width: 48px; height: 48px; border-radius: 10px; margin-right: 16px;">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-tiktok me-2"></i>TikTok Trends - Egypt</h2>
+            <p class="mb-0">Trending hashtags and product suggestions based on Egyptian TikTok trends</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-card">
+    <div class="row align-items-end">
+        <div class="col-md-2">
+            <label for="days_back" class="form-label fw-semibold">Analysis Period</label>
+            <select class="form-select" id="days_back">
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="top_categories" class="form-label fw-semibold">Categories</label>
+            <select class="form-select" id="top_categories">
+                <option value="3">Top 3</option>
+                <option value="5" selected>Top 5</option>
+                <option value="8">Top 8</option>
+                <option value="10">Top 10</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="items_limit" class="form-label fw-semibold">Items/Category</label>
+            <select class="form-select" id="items_limit">
+                <option value="5">5 items</option>
+                <option value="10" selected>10 items</option>
+                <option value="20">20 items</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-primary w-100" onclick="loadTrendData()">
+                <i class="bi bi-arrow-repeat me-1"></i>Analyze Trends
+            </button>
+        </div>
+        <div class="col-md-3 text-end">
+            <span class="text-muted small">
+                <i class="bi bi-info-circle me-1"></i>Data based on Egypt TikTok trends
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-hash"></i></div>
+        <div class="stat-label">Trending Hashtags</div>
+        <div class="stat-value" id="stat-hashtags">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-tags"></i></div>
+        <div class="stat-label">Mapped Categories</div>
+        <div class="stat-value" id="stat-categories">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-shop"></i></div>
+        <div class="stat-label">Suggested Vendors</div>
+        <div class="stat-value" id="stat-vendors">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-box-seam"></i></div>
+        <div class="stat-label">Suggested Items</div>
+        <div class="stat-value" id="stat-items">-</div>
+    </div>
+</div>
+
+<!-- Main Loading -->
+<div id="main-loading" class="data-card mb-4" style="display: none;">
+    <div class="p-5 text-center">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted mb-0">Analyzing TikTok trends and fetching product suggestions...</p>
+    </div>
+</div>
+
+<!-- Trending Hashtags Section -->
+<div class="data-card mb-4" id="hashtags-card">
+    <div class="card-header">
+        <h5><i class="bi bi-hash me-2"></i>Trending Hashtags (Egypt)</h5>
+        <span class="badge bg-primary" id="hashtags-count">0 hashtags</span>
+    </div>
+    <div id="hashtags-container" class="p-4">
+        <p class="text-muted text-center mb-0">Click "Analyze Trends" to load trending hashtags</p>
+    </div>
+</div>
+
+<!-- Trending Categories Section -->
+<div class="data-card mb-4" id="categories-card">
+    <div class="card-header">
+        <h5><i class="bi bi-bar-chart me-2"></i>Trending Categories</h5>
+        <span class="badge bg-success" id="categories-count">0 categories</span>
+    </div>
+    <div id="categories-container" class="p-4">
+        <p class="text-muted text-center mb-0">Click "Analyze Trends" to load trending categories</p>
+    </div>
+</div>
+
+<!-- Category Details Sections -->
+<div id="category-details-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .hashtag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    .hashtag-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .hashtag-chip .views {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    .hashtag-chip.fashion { background: #fce7f3; color: #be185d; }
+    .hashtag-chip.beauty { background: #f3e8ff; color: #7c3aed; }
+    .hashtag-chip.electronics { background: #dbeafe; color: #1d4ed8; }
+    .hashtag-chip.groceries { background: #dcfce7; color: #15803d; }
+    .hashtag-chip.restaurants { background: #ffedd5; color: #c2410c; }
+    .hashtag-chip.home { background: #fef3c7; color: #b45309; }
+    .hashtag-chip.kids { background: #cffafe; color: #0891b2; }
+    .hashtag-chip.sports { background: #d1fae5; color: #059669; }
+    .hashtag-chip.stationary { background: #e0e7ff; color: #4338ca; }
+    .hashtag-chip.flowers { background: #fce7f3; color: #db2777; }
+    .hashtag-chip.entertainment { background: #fae8ff; color: #a21caf; }
+    .hashtag-chip.health { background: #ccfbf1; color: #0d9488; }
+    .hashtag-chip.pharmacies { background: #fee2e2; color: #dc2626; }
+    .hashtag-chip.automotive { background: #e5e7eb; color: #374151; }
+    .hashtag-chip.pet { background: #fef9c3; color: #a16207; }
+    .hashtag-chip.seasonal { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e; }
+
+    .category-bar {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-left: 4px solid #4f46e5;
+    }
+    .category-bar:hover {
+        background: #f1f5f9;
+        transform: translateX(4px);
+    }
+    .category-bar .bar-fill {
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+        transition: width 0.5s ease;
+    }
+    .category-bar .category-name {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .category-bar .category-score {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    .category-bar .hashtag-tags {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+
+    .trend-vendor-card, .trend-item-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+        transition: all 0.2s;
+    }
+    .trend-vendor-card:hover, .trend-item-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .trend-vendor-card img, .trend-item-card img {
+        width: 56px;
+        height: 56px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #f1f5f9;
+    }
+    .trend-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        background: #f1f5f9;
+        color: #64748b;
+    }
+    .trend-badge.hot {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .category-section {
+        margin-bottom: 24px;
+    }
+    .category-section .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .category-section .section-header h5 {
+        margin: 0;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .category-section .section-header .trend-score {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+</style>
+
+<script>
+    let trendData = null;
+
+    function getHashtagChipClass(categories) {
+        if (!categories || categories.length === 0) return 'seasonal';
+        const cat = categories[0].toLowerCase();
+        const classMap = {
+            'fashion': 'fashion',
+            'beauty': 'beauty',
+            'electronics': 'electronics',
+            'groceries': 'groceries',
+            'restaurants': 'restaurants',
+            'home and garden': 'home',
+            'kids': 'kids',
+            'sports': 'sports',
+            'stationary': 'stationary',
+            'flowers and gifts': 'flowers',
+            'entertainment': 'entertainment',
+            'health and nutrition': 'health',
+            'pharmacies': 'pharmacies',
+            'automotive': 'automotive',
+            'pet care': 'pet'
+        };
+        return classMap[cat] || 'seasonal';
+    }
+
+    function formatViews(views) {
+        if (!views) return '';
+        if (views >= 1000000000) return (views / 1000000000).toFixed(1) + 'B';
+        if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M';
+        if (views >= 1000) return (views / 1000).toFixed(1) + 'K';
+        return views.toString();
+    }
+
+    async function loadTrendData() {
+        const daysBack = document.getElementById('days_back').value;
+        const topCategories = document.getElementById('top_categories').value;
+        const itemsLimit = document.getElementById('items_limit').value;
+
+        // Show loading
+        document.getElementById('main-loading').style.display = 'block';
+        document.getElementById('hashtags-container').innerHTML = '<p class="text-muted text-center">Loading...</p>';
+        document.getElementById('categories-container').innerHTML = '<p class="text-muted text-center">Loading...</p>';
+        document.getElementById('category-details-container').innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/trends/suggestions?days_back=${daysBack}&top_categories=${topCategories}&items_per_category=${itemsLimit}&vendors_per_category=${itemsLimit}`);
+            const result = await response.json();
+
+            document.getElementById('main-loading').style.display = 'none';
+
+            if (result.success) {
+                trendData = result.data;
+                renderTrendData(trendData);
+            } else {
+                showError(result.error);
+            }
+        } catch (error) {
+            document.getElementById('main-loading').style.display = 'none';
+            showError(error.message);
+        }
+    }
+
+    function renderTrendData(data) {
+        // Update stats
+        const hashtags = data.trending_hashtags || [];
+        const categories = data.category_suggestions || {};
+        let totalVendors = 0;
+        let totalItems = 0;
+
+        Object.values(categories).forEach(cat => {
+            totalVendors += cat.vendor_count || 0;
+            totalItems += cat.item_count || 0;
+        });
+
+        document.getElementById('stat-hashtags').textContent = hashtags.length;
+        document.getElementById('stat-categories').textContent = Object.keys(categories).length;
+        document.getElementById('stat-vendors').textContent = totalVendors;
+        document.getElementById('stat-items').textContent = totalItems;
+
+        // Render hashtags
+        renderHashtags(hashtags);
+
+        // Render categories
+        renderCategories(data.trending_categories || {});
+
+        // Render category details
+        renderCategoryDetails(categories);
+    }
+
+    function renderHashtags(hashtags) {
+        const container = document.getElementById('hashtags-container');
+        document.getElementById('hashtags-count').textContent = `${hashtags.length} hashtags`;
+
+        if (hashtags.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">No trending hashtags found</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="d-flex flex-wrap">
+                ${hashtags.map(h => `
+                    <div class="hashtag-chip ${getHashtagChipClass(h.categories)}" title="Categories: ${(h.categories || []).join(', ')}">
+                        <span>#${h.hashtag}</span>
+                        ${h.views ? `<span class="views">${formatViews(h.views)}</span>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderCategories(categories) {
+        const container = document.getElementById('categories-container');
+        const catArray = Object.entries(categories);
+        document.getElementById('categories-count').textContent = `${catArray.length} categories`;
+
+        if (catArray.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">No categories mapped</p>';
+            return;
+        }
+
+        // Find max score for scaling
+        const maxScore = Math.max(...catArray.map(([_, data]) => data.score));
+
+        container.innerHTML = catArray.map(([category, data]) => {
+            const widthPercent = (data.score / maxScore) * 100;
+            const hashtags = (data.hashtags || []).slice(0, 5).map(h => `#${h}`).join(', ');
+
+            return `
+                <div class="category-bar" onclick="scrollToCategory('${category}')">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="category-name">${category}</span>
+                        <span class="category-score">Score: ${data.score.toFixed(2)}</span>
+                    </div>
+                    <div class="bg-light rounded" style="height: 8px; width: 100%;">
+                        <div class="bar-fill" style="width: ${widthPercent}%;"></div>
+                    </div>
+                    <div class="hashtag-tags mt-2">${hashtags}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderCategoryDetails(categories) {
+        const container = document.getElementById('category-details-container');
+
+        const html = Object.entries(categories).map(([category, data]) => {
+            const vendors = data.suggested_vendors || [];
+            const items = data.suggested_items || [];
+            const hashtags = (data.related_hashtags || []).slice(0, 5).map(h => `#${h}`).join(', ');
+
+            return `
+                <div class="data-card category-section" id="category-${category.replace(/\s+/g, '-')}">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center gap-3">
+                            <h5 class="mb-0"><i class="bi bi-tag me-2"></i>${category.charAt(0).toUpperCase() + category.slice(1)}</h5>
+                            <span class="trend-score">Trend Score: ${data.trend_score.toFixed(2)}</span>
+                        </div>
+                        <small class="text-muted">${hashtags}</small>
+                    </div>
+                    <div class="p-4">
+                        <div class="row">
+                            <!-- Items Column -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3"><i class="bi bi-box-seam me-2 text-primary"></i>Top Items (${items.length})</h6>
+                                ${items.length > 0 ? `
+                                    <div class="row g-3">
+                                        ${items.slice(0, 6).map((item, idx) => `
+                                            <div class="col-md-6">
+                                                <div class="trend-item-card d-flex gap-3">
+                                                    <img src="${item.item_image || '/static/placeholder.png'}" alt="${item.item_name}" onerror="this.src='/static/placeholder.png'">
+                                                    <div class="flex-grow-1 min-w-0">
+                                                        <div class="fw-semibold small text-truncate" title="${item.item_name}">${item.item_name || 'Unknown'}</div>
+                                                        <div class="text-muted small text-truncate">${item.vendor_name || 'Unknown'}</div>
+                                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                                            <span class="trend-badge ${idx < 3 ? 'hot' : ''}">${item.total_qty || 0} sold</span>
+                                                            <span class="fw-semibold text-success small">${item.price ? 'EGP ' + parseFloat(item.price).toFixed(0) : ''}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p class="text-muted small">No items found for this category</p>'}
+                            </div>
+
+                            <!-- Vendors Column -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3"><i class="bi bi-shop me-2 text-success"></i>Top Vendors (${vendors.length})</h6>
+                                ${vendors.length > 0 ? `
+                                    <div class="row g-3">
+                                        ${vendors.slice(0, 6).map((vendor, idx) => `
+                                            <div class="col-md-6">
+                                                <div class="trend-vendor-card d-flex gap-3">
+                                                    <img src="${vendor.vendor_image || '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/placeholder.png'">
+                                                    <div class="flex-grow-1 min-w-0">
+                                                        <div class="fw-semibold small text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown'}</div>
+                                                        <div class="text-muted small">${vendor.vendor_shopsubcat || vendor.vendor_shopcat || ''}</div>
+                                                        <div class="d-flex gap-2 mt-1">
+                                                            <span class="trend-badge ${idx < 3 ? 'hot' : ''}">${vendor.orders_count || 0} orders</span>
+                                                            <span class="trend-badge">${vendor.total_qty || 0} qty</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p class="text-muted small">No vendors found for this category</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    function scrollToCategory(category) {
+        const element = document.getElementById(`category-${category.replace(/\s+/g, '-')}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function showError(message) {
+        document.getElementById('hashtags-container').innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-triangle me-2"></i>${message}
+            </div>
+        `;
+    }
+
+    // Auto-load on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTrendData();
+    });
+</script>
+{% endblock %}

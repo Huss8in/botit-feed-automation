@@ -1222,6 +1222,7 @@
 
     async function fetchVendorsAndItems() {
         const category = document.getElementById('modal_category_select').value;
+        const subcategory = document.getElementById('modal_subcategory_select').value;
         const startDate = document.getElementById('modal_start_date').value;
         const endDate = document.getElementById('modal_end_date').value;
 
@@ -1237,10 +1238,34 @@
         document.getElementById('items-container').innerHTML = '';
 
         try {
-            // Fetch vendors and items in parallel
+            // Build query parameters for the new seasonality API
+            let categoriesParam = '';
+            let subcategoriesParam = '';
+
+            if (category) {
+                // Use the specific selected category
+                categoriesParam = category;
+                if (subcategory) {
+                    subcategoriesParam = subcategory;
+                }
+            } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
+                // Use ALL suggested categories for this event
+                categoriesParam = currentEvent.suggestedCategories.join(',');
+            }
+
+            // Build the URL with query parameters
+            const vendorsUrl = `/api/seasonality/vendors?start_date=${startDate}&end_date=${endDate}` +
+                (categoriesParam ? `&categories=${encodeURIComponent(categoriesParam)}` : '') +
+                (subcategoriesParam ? `&subcategories=${encodeURIComponent(subcategoriesParam)}` : '');
+
+            const itemsUrl = `/api/seasonality/items?start_date=${startDate}&end_date=${endDate}` +
+                (categoriesParam ? `&categories=${encodeURIComponent(categoriesParam)}` : '') +
+                (subcategoriesParam ? `&subcategories=${encodeURIComponent(subcategoriesParam)}` : '');
+
+            // Fetch vendors and items in parallel using the new seasonality endpoints
             const [vendorsResponse, itemsResponse] = await Promise.all([
-                fetch(`/api/top-vendors?start_date=${startDate}&end_date=${endDate}`),
-                fetch(`/api/top-items?start_date=${startDate}&end_date=${endDate}`)
+                fetch(vendorsUrl),
+                fetch(itemsUrl)
             ]);
 
             const vendorsData = await vendorsResponse.json();
@@ -1250,24 +1275,13 @@
             document.getElementById('vendors-loading').style.display = 'none';
             document.getElementById('items-loading').style.display = 'none';
 
-            // Filter by category
+            // Data is already filtered at the database level, no need for client-side filtering
             let vendors = vendorsData.data || [];
             let items = itemsData.data || [];
 
-            if (category) {
-                // Filter by specific selected category
-                vendors = vendors.filter(v => v.vendor_shopcat === category);
-                items = items.filter(i => i.vendor_shopcat === category);
-            } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
-                // Filter by ALL suggested categories for this event
-                const suggestedCats = currentEvent.suggestedCategories;
-                vendors = vendors.filter(v => suggestedCats.includes(v.vendor_shopcat));
-                items = items.filter(i => suggestedCats.includes(i.vendor_shopcat));
-            }
-
-            // Render vendors
-            renderModalVendors(vendors, category);
-            renderModalItems(items, category);
+            // Render vendors and items
+            renderModalVendors(vendors, category, subcategory);
+            renderModalItems(items, category, subcategory);
 
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -1278,13 +1292,17 @@
         }
     }
 
-    function renderModalVendors(vendors, filterCategory) {
+    function renderModalVendors(vendors, filterCategory, filterSubcategory) {
         const container = document.getElementById('vendors-container');
 
         // Show filter info
         let filterInfo = '';
         if (filterCategory) {
-            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterCategory}</strong></small></div>`;
+            let filterText = filterCategory;
+            if (filterSubcategory) {
+                filterText += ` > ${filterSubcategory}`;
+            }
+            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterText}</strong></small></div>`;
         } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
             filterInfo = `<div class="alert alert-success py-2 mb-3"><small><i class="bi bi-lightbulb me-1"></i>Showing vendors from suggested categories: <strong>${currentEvent.suggestedCategories.join(', ')}</strong></small></div>`;
         }
@@ -1306,6 +1324,7 @@
                             <div class="flex-grow-1 min-w-0">
                                 <h6 class="mb-1 text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown Vendor'}</h6>
                                 <span class="subcategory-chip">${vendor.vendor_shopcat || 'N/A'}</span>
+                                ${vendor.vendor_shopsubcat ? `<span class="subcategory-chip">${vendor.vendor_shopsubcat}</span>` : ''}
                                 <div class="small text-muted mt-1">
                                     <span class="me-2"><i class="bi bi-bag me-1"></i>${vendor.orders_count} orders</span>
                                     <span><i class="bi bi-box me-1"></i>${vendor.total_qty} qty</span>
@@ -1326,13 +1345,17 @@
         return 'EGP ' + num.toFixed(2);
     }
 
-    function renderModalItems(items, filterCategory) {
+    function renderModalItems(items, filterCategory, filterSubcategory) {
         const container = document.getElementById('items-container');
 
         // Show filter info
         let filterInfo = '';
         if (filterCategory) {
-            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterCategory}</strong></small></div>`;
+            let filterText = filterCategory;
+            if (filterSubcategory) {
+                filterText += ` > ${filterSubcategory}`;
+            }
+            filterInfo = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-funnel me-1"></i>Filtered by: <strong>${filterText}</strong></small></div>`;
         } else if (currentEvent && currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
             filterInfo = `<div class="alert alert-success py-2 mb-3"><small><i class="bi bi-lightbulb me-1"></i>Showing items from suggested categories: <strong>${currentEvent.suggestedCategories.join(', ')}</strong></small></div>`;
         }
@@ -1348,6 +1371,7 @@
             const itemName = item.item_name || 'Unknown Item';
             const vendorName = item.vendor_name || 'Unknown Vendor';
             const vendorCat = item.vendor_shopcat || '';
+            const vendorSubcat = item.vendor_shopsubcat || '';
             const itemImage = item.item_image || '/static/placeholder.png';
             const priceDisplay = formatPrice(item.price);
             const qtyDisplay = item.total_qty || 0;
@@ -1360,6 +1384,7 @@
                             <h6 class="mb-1 text-truncate small" title="${itemName}">${itemName}</h6>
                             <div class="small text-muted">${vendorName}</div>
                             <span class="subcategory-chip">${vendorCat}</span>
+                            ${vendorSubcat ? `<span class="subcategory-chip">${vendorSubcat}</span>` : ''}
                             <div class="d-flex justify-content-between align-items-center mt-1">
                                 <span class="fw-semibold text-success">${priceDisplay}</span>
                                 <span class="small text-muted">${qtyDisplay} sold</span>
