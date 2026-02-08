@@ -416,7 +416,7 @@
                                         ${items.slice(0, 6).map((item, idx) => `
                                             <div class="col-md-6">
                                                 <div class="trend-item-card d-flex gap-3">
-                                                    <img src="${item.item_image || '/static/placeholder.png'}" alt="${item.item_name}" onerror="this.src='/static/placeholder.png'">
+                                                    <img src="${(item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http')) ? item.item_image : '/static/placeholder.png'}" alt="${item.item_name}" onerror="this.src='/static/placeholder.png'">
                                                     <div class="flex-grow-1 min-w-0">
                                                         <div class="fw-semibold small text-truncate" title="${item.item_name}">${item.item_name || 'Unknown'}</div>
                                                         <div class="text-muted small text-truncate">${item.vendor_name || 'Unknown'}</div>
@@ -440,10 +440,10 @@
                                         ${vendors.slice(0, 6).map((vendor, idx) => `
                                             <div class="col-md-6">
                                                 <div class="trend-vendor-card d-flex gap-3">
-                                                    <img src="${vendor.vendor_image || '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/placeholder.png'">
+                                                    <img src="${(vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http')) ? vendor.vendor_image : '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/placeholder.png'">
                                                     <div class="flex-grow-1 min-w-0">
                                                         <div class="fw-semibold small text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown'}</div>
-                                                        <div class="text-muted small">${vendor.vendor_shopsubcat || vendor.vendor_shopcat || ''}</div>
+                                                        <span class="badge-category ${getCategoryClass(vendor.vendor_shoppingCategory)}" style="font-size: 0.7rem;">${vendor.vendor_shoppingCategory || 'N/A'}</span>
                                                         <div class="d-flex gap-2 mt-1">
                                                             <span class="trend-badge ${idx < 3 ? 'hot' : ''}">${vendor.orders_count || 0} orders</span>
                                                             <span class="trend-badge">${vendor.total_qty || 0} qty</span>

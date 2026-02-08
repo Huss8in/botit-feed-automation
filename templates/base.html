@@ -209,13 +209,29 @@
             font-family: monospace;
         }
         .badge-category {
-            background: #f1f5f9;
-            color: #475569;
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 0.75rem;
             font-weight: 500;
+            background: #f1f5f9;
+            color: #475569;
         }
+        /* Category-specific colors */
+        .badge-category.fashion { background: #fce7f3; color: #be185d; }
+        .badge-category.beauty { background: #f3e8ff; color: #7c3aed; }
+        .badge-category.electronics { background: #dbeafe; color: #1d4ed8; }
+        .badge-category.groceries { background: #dcfce7; color: #15803d; }
+        .badge-category.restaurants { background: #ffedd5; color: #c2410c; }
+        .badge-category.home-and-garden { background: #fef3c7; color: #b45309; }
+        .badge-category.kids { background: #cffafe; color: #0891b2; }
+        .badge-category.sports { background: #d1fae5; color: #059669; }
+        .badge-category.stationary { background: #e0e7ff; color: #4338ca; }
+        .badge-category.flowers-and-gifts { background: #fce7f3; color: #db2777; }
+        .badge-category.entertainment { background: #fae8ff; color: #a21caf; }
+        .badge-category.health-and-nutrition { background: #ccfbf1; color: #0d9488; }
+        .badge-category.pharmacies { background: #fee2e2; color: #dc2626; }
+        .badge-category.automotive { background: #e5e7eb; color: #374151; }
+        .badge-category.pet-care { background: #fef9c3; color: #a16207; }
         .rank-badge {
             width: 28px;
             height: 28px;
@@ -280,6 +296,9 @@
                     <small>Feed Automation Dashboard</small>
                 </div>
                 <div class="pt-3">
+                    <a href="/feed" class="{% if request.endpoint == 'feed_page' %}active{% endif %}">
+                        <i class="bi bi-magic"></i> Feed Generator
+                    </a>
                     <a href="/" class="{% if request.endpoint == 'index' %}active{% endif %}">
                         <i class="bi bi-grid-1x2"></i> Dashboard
                     </a>
@@ -328,6 +347,18 @@
         function truncateId(id) {
             if (!id) return 'N/A';
             return id.length > 8 ? id.substring(0, 8) + '...' : id;
+        }
+
+        function getCategoryClass(category) {
+            if (!category) return '';
+            // Convert category to CSS class format (lowercase, spaces to hyphens)
+            return category.toLowerCase().replace(/\s+/g, '-');
+        }
+
+        function renderCategoryBadge(category) {
+            if (!category) return '<span class="badge-category">N/A</span>';
+            const cssClass = getCategoryClass(category);
+            return `<span class="badge-category ${cssClass}">${category}</span>`;
         }
     </script>
     {% block scripts %}{% endblock %}

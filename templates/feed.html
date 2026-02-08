@@ -1,0 +1,692 @@
+{% extends "base.html" %}
+
+{% block title %}Feed Generator - Botit Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2><i class="bi bi-magic me-2"></i>Feed Generator</h2>
+    <p>AI-powered feed recommendations based on top performers, events & trends</p>
+</div>
+
+<!-- Date Filters -->
+<div class="filter-card">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-muted me-2">Quick Select:</span>
+                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="2">2 Days</button>
+                <button class="btn btn-sm btn-outline-secondary date-btn active" data-days="7">7 Days</button>
+                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="14">14 Days</button>
+                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="30">30 Days</button>
+                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="90">3 Months</button>
+                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="365">1 Year</button>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="d-flex gap-2 align-items-center">
+                <input type="date" class="form-control form-control-sm" id="startDate">
+                <span class="text-muted">to</span>
+                <input type="date" class="form-control form-control-sm" id="endDate">
+                <button class="btn btn-sm btn-primary" onclick="applyCustomDates()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Overview -->
+<div class="stats-grid" id="quickStats">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="bi bi-shop"></i></div>
+        <div class="stat-label">Top Vendors</div>
+        <div class="stat-value" id="statVendors">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-box-seam"></i></div>
+        <div class="stat-label">Top Items</div>
+        <div class="stat-value" id="statItems">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-calendar-event"></i></div>
+        <div class="stat-label">Active Events</div>
+        <div class="stat-value" id="statEvents">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="bi bi-tiktok"></i></div>
+        <div class="stat-label">Trending Tags</div>
+        <div class="stat-value" id="statHashtags">-</div>
+    </div>
+</div>
+
+<!-- Data Sources Preview -->
+<div class="row mb-4">
+    <!-- Top Vendors Preview -->
+    <div class="col-md-6 mb-3">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-shop me-2"></i>Top Vendors <span class="date-range-label text-muted fs-6">(Last 7 Days)</span></h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="loading-overlay" id="vendorsLoading">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Loading vendors...</p>
+                </div>
+                <div id="vendorsPreview" class="p-3">
+                    <div class="empty-state"><i class="bi bi-shop"></i><p>No vendors loaded</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Items Preview -->
+    <div class="col-md-6 mb-3">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-box-seam me-2"></i>Top Items <span class="date-range-label text-muted fs-6">(Last 7 Days)</span></h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="loading-overlay" id="itemsLoading">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Loading items...</p>
+                </div>
+                <div id="itemsPreview" class="p-3">
+                    <div class="empty-state"><i class="bi bi-box-seam"></i><p>No items loaded</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Current Events -->
+    <div class="col-md-6 mb-3">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-calendar-event me-2"></i>Upcoming Events</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="eventsPreview" class="p-3">
+                    <!-- Will be populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TikTok Trends -->
+    <div class="col-md-6 mb-3">
+        <div class="data-card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-tiktok me-2"></i>TikTok Trending</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="loading-overlay" id="trendsLoading">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Loading trends...</p>
+                </div>
+                <div id="trendsPreview" class="p-3">
+                    <div class="empty-state"><i class="bi bi-tiktok"></i><p>No trends loaded</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Feed Section -->
+<div class="data-card mb-4">
+    <div class="card-header">
+        <h5><i class="bi bi-magic me-2"></i>Generate Today's Feed</h5>
+        <span class="badge bg-warning text-dark"><i class="bi bi-lightning-charge"></i> Uses AI Tokens</span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="mb-2 text-muted">Generate AI-powered feed recommendations combining:</p>
+                <ul class="mb-3">
+                    <li>Top performing vendors & items from <strong id="generateDateRange">the selected period</strong></li>
+                    <li>Relevant products for upcoming events/seasons</li>
+                    <li>Products aligned with current TikTok trends</li>
+                </ul>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="includeVendors" checked>
+                    <label class="form-check-label" for="includeVendors">Top Vendors</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="includeItems" checked>
+                    <label class="form-check-label" for="includeItems">Top Items</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="includeEvents" checked>
+                    <label class="form-check-label" for="includeEvents">Events</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="includeTrends" checked>
+                    <label class="form-check-label" for="includeTrends">TikTok Trends</label>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-primary btn-lg" id="generateBtn" onclick="generateFeed()">
+                    <i class="bi bi-magic me-2"></i>Generate Feed
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generated Feed Results -->
+<div class="data-card mb-4" id="feedResultsCard" style="display: none;">
+    <div class="card-header">
+        <h5><i class="bi bi-list-check me-2"></i>Generated Feed Recommendations</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary me-2" onclick="copyFeed()">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="downloadFeed()">
+                <i class="bi bi-download"></i> Download
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="loading-overlay" id="generateLoading">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 text-muted">Generating AI recommendations...</p>
+        </div>
+        <div id="feedResults" class="feed-results">
+            <!-- AI-generated content will appear here -->
+        </div>
+    </div>
+</div>
+
+<style>
+    .preview-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .preview-list li {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .preview-list li:last-child {
+        border-bottom: none;
+    }
+    .preview-list img {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-right: 12px;
+    }
+    .preview-list .name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.9rem;
+    }
+    .preview-list .meta {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    .preview-list .rank {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.7rem;
+        margin-right: 12px;
+        background: #f1f5f9;
+        color: #64748b;
+    }
+    .preview-list .rank.gold { background: #fef3c7; color: #d97706; }
+    .preview-list .rank.silver { background: #e2e8f0; color: #64748b; }
+    .preview-list .rank.bronze { background: #ffedd5; color: #c2410c; }
+
+    .event-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        margin: 4px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .event-chip.religious { background: #dcfce7; color: #16a34a; }
+    .event-chip.national { background: #dbeafe; color: #2563eb; }
+    .event-chip.shopping { background: #fef3c7; color: #d97706; }
+    .event-chip.seasonal { background: #ede9fe; color: #7c3aed; }
+    .event-chip i { margin-right: 6px; }
+
+    .hashtag-chip {
+        display: inline-block;
+        padding: 6px 12px;
+        margin: 3px;
+        border-radius: 16px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .hashtag-chip.fashion { background: #fce7f3; color: #db2777; }
+    .hashtag-chip.beauty { background: #ede9fe; color: #7c3aed; }
+    .hashtag-chip.food { background: #ffedd5; color: #ea580c; }
+    .hashtag-chip.electronics { background: #dbeafe; color: #2563eb; }
+    .hashtag-chip.home { background: #dcfce7; color: #16a34a; }
+
+    .feed-results {
+        white-space: pre-wrap;
+        font-family: 'Inter', sans-serif;
+        line-height: 1.8;
+    }
+    .feed-results h4 {
+        color: #4f46e5;
+        margin-top: 24px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .feed-results h4:first-child {
+        margin-top: 0;
+    }
+    .feed-results ul {
+        margin-bottom: 16px;
+    }
+    .feed-results li {
+        margin-bottom: 8px;
+    }
+
+    #generateBtn:disabled {
+        opacity: 0.7;
+    }
+
+    .date-btn {
+        transition: all 0.2s;
+    }
+    .date-btn.active {
+        background: var(--primary-color, #4f46e5);
+        border-color: var(--primary-color, #4f46e5);
+        color: #fff;
+    }
+    .date-btn:hover:not(.active) {
+        background: #e2e8f0;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Egypt Events Calendar (subset for current/upcoming)
+    const egyptEvents = [
+        { name: "Ramadan", date: "2025-02-28", endDate: "2025-03-29", type: "religious", categories: ["fashion", "food", "home"] },
+        { name: "Eid al-Fitr", date: "2025-03-30", endDate: "2025-04-02", type: "religious", categories: ["fashion", "beauty", "food"] },
+        { name: "Mother's Day", date: "2025-03-21", type: "national", categories: ["beauty", "fashion", "jewelry"] },
+        { name: "Sham El-Nessim", date: "2025-04-21", type: "national", categories: ["food", "outdoor"] },
+        { name: "Eid al-Adha", date: "2025-06-06", endDate: "2025-06-09", type: "religious", categories: ["fashion", "food", "home"] },
+        { name: "Back to School", date: "2025-09-01", endDate: "2025-09-30", type: "seasonal", categories: ["fashion", "electronics", "stationery"] },
+        { name: "Singles Day (11.11)", date: "2025-11-11", type: "shopping", categories: ["all"] },
+        { name: "Black Friday", date: "2025-11-28", endDate: "2025-11-30", type: "shopping", categories: ["all"] },
+        { name: "Winter Season", date: "2025-12-01", endDate: "2026-02-28", type: "seasonal", categories: ["fashion", "home"] },
+        { name: "Valentine's Day", date: "2026-02-14", type: "national", categories: ["beauty", "fashion", "jewelry", "flowers"] },
+        { name: "Ramadan 2026", date: "2026-02-17", endDate: "2026-03-18", type: "religious", categories: ["fashion", "food", "home"] }
+    ];
+
+    let loadedData = {
+        vendors: [],
+        items: [],
+        hashtags: [],
+        categories: []
+    };
+
+    // Current date range state
+    let currentStartDate = null;
+    let currentEndDate = null;
+    let currentDays = 7;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize dates
+        initializeDates(7);
+
+        // Setup date button listeners
+        document.querySelectorAll('.date-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const days = parseInt(this.dataset.days);
+                document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                initializeDates(days);
+                loadAllData();
+            });
+        });
+
+        loadAllData();
+        displayUpcomingEvents();
+    });
+
+    function initializeDates(days) {
+        currentDays = days;
+        currentEndDate = new Date();
+        currentStartDate = new Date();
+        currentStartDate.setDate(currentStartDate.getDate() - days);
+
+        // Update date inputs
+        document.getElementById('startDate').value = currentStartDate.toISOString().split('T')[0];
+        document.getElementById('endDate').value = currentEndDate.toISOString().split('T')[0];
+
+        // Update labels
+        updateDateLabels();
+    }
+
+    function applyCustomDates() {
+        const startInput = document.getElementById('startDate').value;
+        const endInput = document.getElementById('endDate').value;
+
+        if (!startInput || !endInput) {
+            alert('Please select both start and end dates');
+            return;
+        }
+
+        currentStartDate = new Date(startInput);
+        currentEndDate = new Date(endInput);
+
+        // Calculate days difference
+        const diffTime = Math.abs(currentEndDate - currentStartDate);
+        currentDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // Remove active from quick buttons
+        document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+
+        updateDateLabels();
+        loadAllData();
+    }
+
+    function updateDateLabels() {
+        const startStr = currentStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endStr = currentEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const label = `(${startStr} - ${endStr})`;
+
+        // Update all date range labels
+        document.querySelectorAll('.date-range-label').forEach(el => {
+            el.textContent = label;
+        });
+
+        // Update generate section text
+        const generateLabel = document.getElementById('generateDateRange');
+        if (generateLabel) {
+            generateLabel.textContent = `${startStr} - ${endStr}`;
+        }
+    }
+
+    function loadAllData() {
+        const startStr = currentStartDate.toISOString().split('T')[0];
+        const endStr = currentEndDate.toISOString().split('T')[0];
+
+        // Load vendors
+        document.getElementById('vendorsLoading').style.display = 'block';
+        fetch(`/api/top-vendors?start_date=${startStr}&end_date=${endStr}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('vendorsLoading').style.display = 'none';
+                if (data.success) {
+                    loadedData.vendors = data.data.slice(0, 10);
+                    displayVendorsPreview(loadedData.vendors);
+                    document.getElementById('statVendors').textContent = data.data.length;
+                }
+            })
+            .catch(err => {
+                document.getElementById('vendorsLoading').style.display = 'none';
+                console.error('Error loading vendors:', err);
+            });
+
+        // Load items
+        document.getElementById('itemsLoading').style.display = 'block';
+        fetch(`/api/top-items?start_date=${startStr}&end_date=${endStr}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('itemsLoading').style.display = 'none';
+                if (data.success) {
+                    loadedData.items = data.data.slice(0, 10);
+                    displayItemsPreview(loadedData.items);
+                    document.getElementById('statItems').textContent = data.data.length;
+                }
+            })
+            .catch(err => {
+                document.getElementById('itemsLoading').style.display = 'none';
+                console.error('Error loading items:', err);
+            });
+
+        // Load TikTok trends
+        document.getElementById('trendsLoading').style.display = 'block';
+        fetch('/api/trends/hashtags')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('trendsLoading').style.display = 'none';
+                if (data.success) {
+                    loadedData.hashtags = data.data.hashtags || [];
+                    loadedData.categories = data.data.trending_categories || [];
+                    displayTrendsPreview(loadedData.hashtags, loadedData.categories);
+                    document.getElementById('statHashtags').textContent = loadedData.hashtags.length;
+                }
+            })
+            .catch(err => {
+                document.getElementById('trendsLoading').style.display = 'none';
+                console.error('Error loading trends:', err);
+            });
+    }
+
+    function displayVendorsPreview(vendors) {
+        const container = document.getElementById('vendorsPreview');
+        if (!vendors || vendors.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="bi bi-shop"></i><p>No vendors found</p></div>';
+            return;
+        }
+
+        let html = '<ul class="preview-list">';
+        vendors.slice(0, 5).forEach((vendor, i) => {
+            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+            html += `
+                <li>
+                    <span class="rank ${rankClass}">${i + 1}</span>
+                    <img src="${(vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http')) ? vendor.vendor_image : '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/botit-logo.png'">
+                    <div>
+                        <div class="name">${vendor.vendor_name || 'Unknown Vendor'}</div>
+                        <div class="meta">${formatNumber(vendor.orders_count)} orders · <span class="badge-category ${getCategoryClass(vendor.vendor_shoppingCategory)}">${vendor.vendor_shoppingCategory || 'N/A'}</span></div>
+                    </div>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+
+    function displayItemsPreview(items) {
+        const container = document.getElementById('itemsPreview');
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="bi bi-box-seam"></i><p>No items found</p></div>';
+            return;
+        }
+
+        let html = '<ul class="preview-list">';
+        items.slice(0, 5).forEach((item, i) => {
+            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+            html += `
+                <li>
+                    <span class="rank ${rankClass}">${i + 1}</span>
+                    <img src="${(item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http')) ? item.item_image : '/static/placeholder.png'}" alt="${item.item_name}" onerror="this.src='/static/botit-logo.png'">
+                    <div>
+                        <div class="name">${(item.item_name || 'Unknown Item').substring(0, 40)}${item.item_name?.length > 40 ? '...' : ''}</div>
+                        <div class="meta">${formatNumber(item.total_qty)} sold · ${formatCurrency(item.price)}</div>
+                    </div>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+
+    function displayUpcomingEvents() {
+        const container = document.getElementById('eventsPreview');
+        const today = new Date();
+        const upcoming = egyptEvents
+            .filter(e => new Date(e.endDate || e.date) >= today)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .slice(0, 5);
+
+        document.getElementById('statEvents').textContent = upcoming.length;
+
+        if (upcoming.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="bi bi-calendar-x"></i><p>No upcoming events</p></div>';
+            return;
+        }
+
+        let html = '<div class="d-flex flex-wrap">';
+        upcoming.forEach(event => {
+            const icon = event.type === 'religious' ? 'moon-stars' :
+                        event.type === 'shopping' ? 'cart' :
+                        event.type === 'seasonal' ? 'sun' : 'flag';
+            const daysUntil = Math.ceil((new Date(event.date) - today) / (1000 * 60 * 60 * 24));
+            const timeText = daysUntil <= 0 ? 'Now' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days`;
+
+            html += `
+                <div class="event-chip ${event.type}">
+                    <i class="bi bi-${icon}"></i>
+                    ${event.name}
+                    <span class="ms-2 opacity-75">(${timeText})</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function displayTrendsPreview(hashtags, categories) {
+        const container = document.getElementById('trendsPreview');
+
+        if ((!hashtags || hashtags.length === 0) && (!categories || categories.length === 0)) {
+            container.innerHTML = '<div class="empty-state"><i class="bi bi-tiktok"></i><p>No trends loaded</p></div>';
+            return;
+        }
+
+        let html = '<div>';
+
+        // Show top categories
+        if (categories && categories.length > 0) {
+            html += '<div class="mb-3"><strong class="text-muted small">Trending Categories:</strong></div>';
+            html += '<div class="mb-3">';
+            categories.slice(0, 5).forEach(cat => {
+                const catClass = cat.category?.toLowerCase() || '';
+                html += `<span class="hashtag-chip ${catClass}">${cat.category} (${cat.score})</span>`;
+            });
+            html += '</div>';
+        }
+
+        // Show top hashtags
+        if (hashtags && hashtags.length > 0) {
+            html += '<div class="mb-2"><strong class="text-muted small">Top Hashtags:</strong></div>';
+            html += '<div>';
+            hashtags.slice(0, 8).forEach(tag => {
+                const catClass = tag.mapped_category?.toLowerCase() || '';
+                html += `<span class="hashtag-chip ${catClass}">#${tag.hashtag || tag.name}</span>`;
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function generateFeed() {
+        const btn = document.getElementById('generateBtn');
+        const resultsCard = document.getElementById('feedResultsCard');
+        const loadingEl = document.getElementById('generateLoading');
+        const resultsEl = document.getElementById('feedResults');
+
+        // Get options
+        const includeVendors = document.getElementById('includeVendors').checked;
+        const includeItems = document.getElementById('includeItems').checked;
+        const includeEvents = document.getElementById('includeEvents').checked;
+        const includeTrends = document.getElementById('includeTrends').checked;
+
+        // Show results card and loading
+        resultsCard.style.display = 'block';
+        loadingEl.style.display = 'block';
+        resultsEl.innerHTML = '';
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+
+        // Prepare data payload
+        const payload = {
+            include_vendors: includeVendors,
+            include_items: includeItems,
+            include_events: includeEvents,
+            include_trends: includeTrends,
+            vendors: includeVendors ? loadedData.vendors : [],
+            items: includeItems ? loadedData.items : [],
+            hashtags: includeTrends ? loadedData.hashtags : [],
+            trending_categories: includeTrends ? loadedData.categories : [],
+            date_range: {
+                start: currentStartDate.toISOString().split('T')[0],
+                end: currentEndDate.toISOString().split('T')[0],
+                days: currentDays
+            }
+        };
+
+        fetch('/api/generate-feed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            loadingEl.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-2"></i>Generate Feed';
+
+            if (data.success) {
+                resultsEl.innerHTML = formatFeedResults(data.feed);
+            } else {
+                resultsEl.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(err => {
+            loadingEl.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-magic me-2"></i>Generate Feed';
+            resultsEl.innerHTML = `<div class="alert alert-danger">Error generating feed: ${err.message}</div>`;
+        });
+    }
+
+    function formatFeedResults(feed) {
+        // Convert markdown-style formatting to HTML
+        let html = feed
+            .replace(/### (.*?)$/gm, '<h4>$1</h4>')
+            .replace(/## (.*?)$/gm, '<h4>$1</h4>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^\- (.*?)$/gm, '<li>$1</li>')
+            .replace(/^\d+\. (.*?)$/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)\n(?=<li>)/g, '$1')
+            .replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>');
+
+        return html;
+    }
+
+    function copyFeed() {
+        const feedText = document.getElementById('feedResults').innerText;
+        navigator.clipboard.writeText(feedText).then(() => {
+            alert('Feed copied to clipboard!');
+        });
+    }
+
+    function downloadFeed() {
+        const feedText = document.getElementById('feedResults').innerText;
+        const blob = new Blob([feedText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feed-recommendations-${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+</script>
+{% endblock %}

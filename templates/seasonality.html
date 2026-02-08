@@ -106,6 +106,35 @@
     </div>
 </div>
 
+<!-- Pre-computed Top Selling Items by Category Path -->
+<div class="data-card mb-4" id="cached-results-card">
+    <div class="card-header">
+        <h5><i class="bi bi-lightning-charge me-2"></i>Top Selling Items by Category Path</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary" id="cached-status-badge">Loading...</span>
+            <button class="btn btn-sm btn-outline-primary" onclick="loadCachedTopItems()" title="Refresh cached data">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+    <div id="cached-info" class="px-4 pt-3" style="display:none;">
+        <div class="d-flex flex-wrap gap-3 text-muted small mb-3">
+            <span><i class="bi bi-calendar3 me-1"></i>Date range: <strong id="cached-date-range">-</strong></span>
+            <span><i class="bi bi-clock me-1"></i>Last updated: <strong id="cached-last-updated">-</strong></span>
+            <span><i class="bi bi-collection me-1"></i>Total paths: <strong id="cached-total">-</strong></span>
+            <span><i class="bi bi-check-circle me-1"></i>With data: <strong id="cached-found">-</strong></span>
+        </div>
+    </div>
+    <div id="cached-loading" class="text-center py-4" style="display:none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+    <div id="cached-container" class="p-4">
+        <p class="text-muted text-center mb-0">Loading cached results...</p>
+    </div>
+</div>
+
 <!-- Event Details Modal -->
 <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -145,6 +174,22 @@
                     </div>
                     <div id="suggested-items-container" class="p-3">
                         <p class="text-muted text-center mb-0">No suggested items for this event</p>
+                    </div>
+                </div>
+
+                <!-- Cached Top Items per Category Path for this Event -->
+                <div class="data-card mb-4" id="modal-cached-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2 text-primary"></i>Top Item per Category Path (Cached)</h6>
+                        <span class="badge bg-secondary" id="modal-cached-badge">-</span>
+                    </div>
+                    <div id="modal-cached-loading" class="text-center py-3" style="display:none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="modal-cached-container" class="p-3">
+                        <p class="text-muted text-center mb-0 small">No cached data</p>
                     </div>
                 </div>
 
@@ -369,6 +414,8 @@
         border-radius: 8px;
         padding: 12px;
         transition: all 0.2s;
+        height: 100%;
+        overflow: hidden;
     }
     .vendor-card:hover, .item-card:hover {
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -377,9 +424,16 @@
     .vendor-img, .item-img {
         width: 48px;
         height: 48px;
+        min-width: 48px;
         border-radius: 8px;
         object-fit: cover;
         background: #f1f5f9;
+    }
+    .id-badge {
+        font-size: 0.65rem;
+        color: #94a3b8;
+        font-family: monospace;
+        word-break: break-all;
     }
     .subcategory-chip {
         display: inline-block;
@@ -390,6 +444,22 @@
         color: #64748b;
         margin: 2px;
     }
+    /* Category-specific colors for subcategory-chip */
+    .subcategory-chip.fashion { background: #fce7f3; color: #be185d; }
+    .subcategory-chip.beauty { background: #f3e8ff; color: #7c3aed; }
+    .subcategory-chip.electronics { background: #dbeafe; color: #1d4ed8; }
+    .subcategory-chip.groceries { background: #dcfce7; color: #15803d; }
+    .subcategory-chip.restaurants { background: #ffedd5; color: #c2410c; }
+    .subcategory-chip.home-and-garden { background: #fef3c7; color: #b45309; }
+    .subcategory-chip.kids { background: #cffafe; color: #0891b2; }
+    .subcategory-chip.sports { background: #d1fae5; color: #059669; }
+    .subcategory-chip.stationary { background: #e0e7ff; color: #4338ca; }
+    .subcategory-chip.flowers-and-gifts { background: #fce7f3; color: #db2777; }
+    .subcategory-chip.entertainment { background: #fae8ff; color: #a21caf; }
+    .subcategory-chip.health-and-nutrition { background: #ccfbf1; color: #0d9488; }
+    .subcategory-chip.pharmacies { background: #fee2e2; color: #dc2626; }
+    .subcategory-chip.automotive { background: #e5e7eb; color: #374151; }
+    .subcategory-chip.pet-care { background: #fef9c3; color: #a16207; }
     .suggested-item-chip {
         display: inline-flex;
         align-items: center;
@@ -417,6 +487,41 @@
         opacity: 0.8;
         margin-left: 4px;
     }
+    /* Cached results styles */
+    .cached-event-group {
+        margin-bottom: 24px;
+    }
+    .cached-event-group h6 {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .cached-path-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.2s;
+        height: 100%;
+    }
+    .cached-path-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .cached-path-card .path-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-bottom: 8px;
+        font-family: monospace;
+    }
+    .cached-path-card .no-data {
+        color: #94a3b8;
+        font-style: italic;
+        font-size: 0.85rem;
+    }
+
     .timeline-content.clickable, .month-event.clickable, #events-tbody tr.clickable {
         cursor: pointer;
     }
@@ -559,7 +664,17 @@
             suggestedSubcategories: {
                 "groceries": ["supermarkets", "specialty foods"],
                 "restaurants": ["desserts", "bakery and cakes", "egyptian"]
-            }
+            },
+            suggestedItems: [
+                { name: "Halawet el-Moulid", category: "groceries", icon: "bi-cake" },
+                { name: "Sugar Dolls (Arouset el-Moulid)", category: "groceries", icon: "bi-person" },
+                { name: "Nut-based Sweets", category: "groceries", icon: "bi-tree" },
+                { name: "Sesame Candy (Simsimiyya)", category: "groceries", icon: "bi-circle" },
+                { name: "Turkish Delight", category: "groceries", icon: "bi-square" },
+                { name: "Nougat (Nougha)", category: "groceries", icon: "bi-tablet" },
+                { name: "Traditional Desserts", category: "restaurants", icon: "bi-cup-hot" },
+                { name: "Egyptian Pastries", category: "restaurants", icon: "bi-basket" }
+            ]
         },
 
         // National Holidays
@@ -578,7 +693,17 @@
                 "fashion": ["casual wear", "accessories", "jewelry"],
                 "beauty": ["fragrances", "cosmetics", "skincare"],
                 "kids": ["toys and games"]
-            }
+            },
+            suggestedItems: [
+                { name: "Christmas Decorations", category: "home and garden", icon: "bi-stars" },
+                { name: "Gift Set", category: "flowers and gifts", icon: "bi-gift" },
+                { name: "Toys", category: "kids", icon: "bi-controller" },
+                { name: "Flowers", category: "flowers and gifts", icon: "bi-flower1" },
+                { name: "Candles", category: "home and garden", icon: "bi-lamp" },
+                { name: "Jewelry", category: "fashion", icon: "bi-gem" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Christmas Lights", category: "home and garden", icon: "bi-lightbulb" }
+            ]
         },
         {
             name: "Revolution Day (Jan 25)",
@@ -616,7 +741,17 @@
                 "home and garden": ["gardening and outdoor", "storage and organization"],
                 "sports": ["outdoor sports", "recreational activities"],
                 "kids": ["toys and games", "outdoor toy"]
-            }
+            },
+            suggestedItems: [
+                { name: "Feseekh (Salted Fish)", category: "groceries", icon: "bi-basket" },
+                { name: "Colored Eggs", category: "groceries", icon: "bi-circle" },
+                { name: "Pickled Herring (Renga)", category: "groceries", icon: "bi-basket" },
+                { name: "Onions & Lettuce", category: "groceries", icon: "bi-tree" },
+                { name: "Outdoor Picnic Mat", category: "home and garden", icon: "bi-grid" },
+                { name: "Outdoor Games", category: "sports", icon: "bi-dribbble" },
+                { name: "Kids Outdoor Toys", category: "kids", icon: "bi-controller" },
+                { name: "Picnic Cooler Bag", category: "home and garden", icon: "bi-bag" }
+            ]
         },
         {
             name: "Labour Day",
@@ -785,7 +920,17 @@
                 "fashion": ["casual wear", "accessories", "footwear"],
                 "beauty": ["skincare", "cosmetics", "fragrances"],
                 "home and garden": ["home decor", "appliances"]
-            }
+            },
+            suggestedItems: [
+                { name: "Smartphone", category: "electronics", icon: "bi-phone" },
+                { name: "Headphones", category: "electronics", icon: "bi-headphones" },
+                { name: "Fashion Deals", category: "fashion", icon: "bi-bag" },
+                { name: "Skincare Set", category: "beauty", icon: "bi-stars" },
+                { name: "Laptop", category: "electronics", icon: "bi-laptop" },
+                { name: "Sneakers", category: "fashion", icon: "bi-bag-check" },
+                { name: "Perfume", category: "beauty", icon: "bi-droplet" },
+                { name: "Home Decor", category: "home and garden", icon: "bi-house" }
+            ]
         },
         {
             name: "Year-End Sales",
@@ -802,7 +947,17 @@
                 "home and garden": ["home decor", "appliances", "furniture"],
                 "kids": ["toys and games"],
                 "flowers and gifts": ["gifts"]
-            }
+            },
+            suggestedItems: [
+                { name: "Winter Clothes", category: "fashion", icon: "bi-bag" },
+                { name: "Electronics Deals", category: "electronics", icon: "bi-phone" },
+                { name: "Home Decor", category: "home and garden", icon: "bi-house" },
+                { name: "New Year Party Supplies", category: "home and garden", icon: "bi-stars" },
+                { name: "Toys & Games", category: "kids", icon: "bi-controller" },
+                { name: "Gift Sets", category: "flowers and gifts", icon: "bi-gift" },
+                { name: "Laptop", category: "electronics", icon: "bi-laptop" },
+                { name: "Furniture", category: "home and garden", icon: "bi-lamp" }
+            ]
         },
 
         // Seasonal Events
@@ -820,7 +975,17 @@
                 "home and garden": ["appliances", "gardening and outdoor"],
                 "sports": ["water sports", "outdoor sports", "recreational activities"],
                 "beauty": ["skincare", "haircare"]
-            }
+            },
+            suggestedItems: [
+                { name: "Swimwear", category: "fashion", icon: "bi-water" },
+                { name: "Sunscreen", category: "beauty", icon: "bi-sun" },
+                { name: "AC Unit", category: "home and garden", icon: "bi-snow" },
+                { name: "Beach Towels", category: "home and garden", icon: "bi-grid" },
+                { name: "Sunglasses", category: "fashion", icon: "bi-eyeglasses" },
+                { name: "Outdoor Furniture", category: "home and garden", icon: "bi-lamp" },
+                { name: "Water Sports Gear", category: "sports", icon: "bi-water" },
+                { name: "Sandals & Flip Flops", category: "fashion", icon: "bi-bag-check" }
+            ]
         },
         {
             name: "School Summer Vacation",
@@ -836,7 +1001,17 @@
                 "entertainment": ["gaming", "books"],
                 "sports": ["outdoor sports", "water sports", "recreational activities"],
                 "fashion": ["beach wear", "swimwear", "casual wear", "footwear"]
-            }
+            },
+            suggestedItems: [
+                { name: "Board Games", category: "kids", icon: "bi-dice-5" },
+                { name: "Travel Bag", category: "fashion", icon: "bi-bag" },
+                { name: "Swimming Gear", category: "sports", icon: "bi-water" },
+                { name: "Books", category: "entertainment", icon: "bi-book" },
+                { name: "Video Games", category: "entertainment", icon: "bi-controller" },
+                { name: "Outdoor Toys", category: "kids", icon: "bi-dribbble" },
+                { name: "Swimwear", category: "fashion", icon: "bi-water" },
+                { name: "Camping Gear", category: "sports", icon: "bi-tree" }
+            ]
         },
         {
             name: "Winter Season",
@@ -852,7 +1027,17 @@
                 "home and garden": ["appliances", "bed and bath", "home decor"],
                 "groceries": ["supermarkets", "specialty foods"],
                 "restaurants": ["cafes", "egyptian", "middle eastern"]
-            }
+            },
+            suggestedItems: [
+                { name: "Heater", category: "home and garden", icon: "bi-fire" },
+                { name: "Blankets", category: "home and garden", icon: "bi-grid" },
+                { name: "Winter Jacket", category: "fashion", icon: "bi-bag" },
+                { name: "Hot Beverages", category: "restaurants", icon: "bi-cup-hot" },
+                { name: "Boots", category: "fashion", icon: "bi-bag-check" },
+                { name: "Electric Kettle", category: "home and garden", icon: "bi-cup-hot" },
+                { name: "Warm Bedding Set", category: "home and garden", icon: "bi-house" },
+                { name: "Scarves & Gloves", category: "fashion", icon: "bi-snow" }
+            ]
         },
         {
             name: "Wedding Season (Spring)",
@@ -869,7 +1054,17 @@
                 "flowers and gifts": ["flowers", "gifts"],
                 "beauty": ["fragrances", "cosmetics", "skincare"],
                 "electronics": ["electronics", "phones"]
-            }
+            },
+            suggestedItems: [
+                { name: "Home Appliances Set", category: "home and garden", icon: "bi-house" },
+                { name: "Furniture Set", category: "home and garden", icon: "bi-lamp" },
+                { name: "Gold Jewelry", category: "fashion", icon: "bi-gem" },
+                { name: "Perfume Set", category: "beauty", icon: "bi-droplet" },
+                { name: "Kitchenware Set", category: "home and garden", icon: "bi-cup-hot" },
+                { name: "Bedding Set", category: "home and garden", icon: "bi-grid" },
+                { name: "Flower Arrangements", category: "flowers and gifts", icon: "bi-flower1" },
+                { name: "Wedding Gift Set", category: "flowers and gifts", icon: "bi-gift" }
+            ]
         },
         {
             name: "Wedding Season (Fall)",
@@ -886,9 +1081,47 @@
                 "flowers and gifts": ["flowers", "gifts"],
                 "beauty": ["fragrances", "cosmetics", "skincare"],
                 "electronics": ["electronics", "phones"]
-            }
+            },
+            suggestedItems: [
+                { name: "Home Appliances Set", category: "home and garden", icon: "bi-house" },
+                { name: "Furniture Set", category: "home and garden", icon: "bi-lamp" },
+                { name: "Gold Jewelry", category: "fashion", icon: "bi-gem" },
+                { name: "Perfume Set", category: "beauty", icon: "bi-droplet" },
+                { name: "Kitchenware Set", category: "home and garden", icon: "bi-cup-hot" },
+                { name: "Bedding Set", category: "home and garden", icon: "bi-grid" },
+                { name: "Flower Arrangements", category: "flowers and gifts", icon: "bi-flower1" },
+                { name: "Wedding Gift Set", category: "flowers and gifts", icon: "bi-gift" }
+            ]
         }
     ];
+
+    // Map JS event names to pipeline event keys
+    const eventNameToKey = {
+        "Ramadan Begins": "ramadan",
+        "Eid al-Fitr": "eid_al_fitr",
+        "Eid al-Adha": "eid_al_adha",
+        "Islamic New Year": null,
+        "Prophet's Birthday (Mawlid)": "mawlid",
+        "Coptic Christmas": "coptic_christmas",
+        "Revolution Day (Jan 25)": null,
+        "Sinai Liberation Day": null,
+        "Sham El-Nessim": "sham_el_nessim",
+        "Labour Day": null,
+        "June 30 Revolution Day": null,
+        "July 23 Revolution Day": null,
+        "Armed Forces Day": null,
+        "Valentine's Day": "valentines_day",
+        "Mother's Day": "mothers_day",
+        "Back to School": "back_to_school",
+        "Black Friday / White Friday": "black_friday",
+        "Singles' Day (11.11)": "singles_day",
+        "Year-End Sales": "year_end_sales",
+        "Summer Season Begins": "summer_season",
+        "School Summer Vacation": null,
+        "Winter Season": "winter_season",
+        "Wedding Season (Spring)": "wedding_season",
+        "Wedding Season (Fall)": "wedding_season",
+    };
 
     let currentView = 'timeline';
     let selectedYear = Number("{{ current_year }}");
@@ -1059,6 +1292,126 @@
         renderTimeline();
         renderCalendar();
         renderTable();
+        loadCachedTopItems();
+    }
+
+    // ----- Cached Top Items -----
+
+    async function loadCachedTopItems() {
+        const container = document.getElementById('cached-container');
+        const loading = document.getElementById('cached-loading');
+        const badge = document.getElementById('cached-status-badge');
+        const infoBar = document.getElementById('cached-info');
+
+        loading.style.display = 'block';
+        container.innerHTML = '';
+        badge.textContent = 'Loading...';
+        badge.className = 'badge bg-secondary';
+
+        try {
+            const [itemsRes, statusRes] = await Promise.all([
+                fetch('/api/seasonality/top-items-cached'),
+                fetch('/api/seasonality/pipeline-status'),
+            ]);
+            const itemsData = await itemsRes.json();
+            const statusData = await statusRes.json();
+
+            loading.style.display = 'none';
+
+            if (!itemsData.success || !statusData.success) {
+                badge.textContent = 'Error';
+                badge.className = 'badge bg-danger';
+                container.innerHTML = '<p class="text-danger text-center mb-0">Failed to load cached data. Run the pipeline first.</p>';
+                return;
+            }
+
+            if (itemsData.count === 0) {
+                badge.textContent = 'No data';
+                badge.className = 'badge bg-warning text-dark';
+                infoBar.style.display = 'none';
+                container.innerHTML = '<p class="text-muted text-center mb-0">No cached results yet. Run <code>python run_seasonality_pipeline.py</code> to populate.</p>';
+                return;
+            }
+
+            // Update info bar
+            infoBar.style.display = 'block';
+            const dr = statusData.date_range;
+            document.getElementById('cached-date-range').textContent = dr ? `${dr.start} to ${dr.end}` : '-';
+            document.getElementById('cached-last-updated').textContent = statusData.last_updated || '-';
+            document.getElementById('cached-total').textContent = statusData.total_docs;
+            document.getElementById('cached-found').textContent = itemsData.items_found;
+
+            badge.textContent = `${itemsData.items_found}/${itemsData.count} paths`;
+            badge.className = 'badge bg-success';
+
+            renderCachedResults(itemsData.data);
+
+        } catch (err) {
+            loading.style.display = 'none';
+            badge.textContent = 'Error';
+            badge.className = 'badge bg-danger';
+            container.innerHTML = `<p class="text-danger text-center mb-0">Error: ${err.message}</p>`;
+        }
+    }
+
+    function renderCachedResults(docs) {
+        const container = document.getElementById('cached-container');
+
+        // Group by event
+        const groups = {};
+        docs.forEach(doc => {
+            if (!groups[doc.event_key]) {
+                groups[doc.event_key] = { name: doc.event_name, paths: [] };
+            }
+            groups[doc.event_key].paths.push(doc);
+        });
+
+        let html = '';
+        for (const [eventKey, group] of Object.entries(groups)) {
+            const pathCards = group.paths.map(doc => {
+                if (doc.top_item) {
+                    const item = doc.top_item;
+                    const imgSrc = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http'))
+                        ? item.item_image : '/static/placeholder.png';
+                    return `
+                        <div class="col-md-4 col-lg-3">
+                            <div class="cached-path-card">
+                                <div class="path-label" title="${doc.path_label}">${doc.path_label}</div>
+                                <div class="d-flex align-items-start gap-2">
+                                    <img src="${imgSrc}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover;background:#f1f5f9;" onerror="this.src='/static/placeholder.png'">
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="fw-semibold small text-truncate" title="${item.item_name || ''}">${item.item_name || 'Unknown'}</div>
+                                        <div class="text-muted" style="font-size:0.75rem;">${item.vendor_name || ''}</div>
+                                        <div class="d-flex justify-content-between mt-1">
+                                            <span class="text-success fw-semibold" style="font-size:0.8rem;">${formatPrice(item.price)}</span>
+                                            <span class="text-muted" style="font-size:0.75rem;">${item.total_qty || 0} sold</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="col-md-4 col-lg-3">
+                            <div class="cached-path-card">
+                                <div class="path-label" title="${doc.path_label}">${doc.path_label}</div>
+                                <div class="no-data"><i class="bi bi-dash-circle me-1"></i>No sales data</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            html += `
+                <div class="cached-event-group">
+                    <h6><i class="bi bi-calendar-event me-2"></i>${group.name} <span class="badge bg-primary ms-2">${group.paths.length} paths</span></h6>
+                    <div class="row g-3">${pathCards}</div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html || '<p class="text-muted text-center mb-0">No cached results.</p>';
     }
 
     // Modal Functions
@@ -1172,6 +1525,10 @@
             eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
         }
         eventModal.show();
+
+        // Load cached per-path data for this event
+        const eventKey = eventNameToKey[currentEvent.name] || null;
+        loadModalCachedItems(eventKey);
 
         // Auto-fetch data if there are suggested categories
         if (currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
@@ -1319,12 +1676,12 @@
             <div class="row g-3">
                 ${vendors.slice(0, 12).map(vendor => `
                     <div class="col-md-4 col-sm-6">
-                        <div class="vendor-card d-flex align-items-center gap-3">
-                            <img src="${vendor.vendor_image || '/static/placeholder.png'}" alt="${vendor.vendor_name}" class="vendor-img" onerror="this.src='/static/placeholder.png'">
+                        <div class="vendor-card d-flex align-items-start gap-3">
+                            <img src="${(vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http')) ? vendor.vendor_image : '/static/placeholder.png'}" alt="${vendor.vendor_name}" class="vendor-img" onerror="this.src='/static/placeholder.png'">
                             <div class="flex-grow-1 min-w-0">
                                 <h6 class="mb-1 text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown Vendor'}</h6>
-                                <span class="subcategory-chip">${vendor.vendor_shopcat || 'N/A'}</span>
-                                ${vendor.vendor_shopsubcat ? `<span class="subcategory-chip">${vendor.vendor_shopsubcat}</span>` : ''}
+                                <div class="id-badge mb-1"><i class="bi bi-hash"></i>${vendor.vendor_id || 'N/A'}</div>
+                                <span class="subcategory-chip ${getCategoryClass(vendor.vendor_shoppingCategory)}">${vendor.vendor_shoppingCategory || 'N/A'}</span>
                                 <div class="small text-muted mt-1">
                                     <span class="me-2"><i class="bi bi-bag me-1"></i>${vendor.orders_count} orders</span>
                                     <span><i class="bi bi-box me-1"></i>${vendor.total_qty} qty</span>
@@ -1370,21 +1727,21 @@
         const itemsHtml = items.slice(0, 12).map(item => {
             const itemName = item.item_name || 'Unknown Item';
             const vendorName = item.vendor_name || 'Unknown Vendor';
-            const vendorCat = item.vendor_shopcat || '';
+            const vendorCat = item.vendor_shoppingCategory || '';
             const vendorSubcat = item.vendor_shopsubcat || '';
-            const itemImage = item.item_image || '/static/placeholder.png';
+            const itemImage = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http')) ? item.item_image : '/static/placeholder.png';
             const priceDisplay = formatPrice(item.price);
             const qtyDisplay = item.total_qty || 0;
 
             return `
                 <div class="col-md-4 col-sm-6">
-                    <div class="item-card d-flex align-items-center gap-3">
+                    <div class="item-card d-flex align-items-start gap-3">
                         <img src="${itemImage}" alt="${itemName}" class="item-img" onerror="this.src='/static/placeholder.png'">
                         <div class="flex-grow-1 min-w-0">
                             <h6 class="mb-1 text-truncate small" title="${itemName}">${itemName}</h6>
-                            <div class="small text-muted">${vendorName}</div>
-                            <span class="subcategory-chip">${vendorCat}</span>
-                            ${vendorSubcat ? `<span class="subcategory-chip">${vendorSubcat}</span>` : ''}
+                            <div class="id-badge mb-1"><i class="bi bi-hash"></i>${item.item_id || 'N/A'}</div>
+                            <div class="small text-muted text-truncate" title="${vendorName}">${vendorName}</div>
+                            <span class="subcategory-chip ${getCategoryClass(vendorCat)}">${vendorCat || 'N/A'}</span>
                             <div class="d-flex justify-content-between align-items-center mt-1">
                                 <span class="fw-semibold text-success">${priceDisplay}</span>
                                 <span class="small text-muted">${qtyDisplay} sold</span>
@@ -1402,6 +1759,89 @@
             </div>
             ${items.length > 12 ? `<p class="text-muted text-center mt-3 mb-0">Showing 12 of ${items.length} items</p>` : ''}
         `;
+    }
+
+    async function loadModalCachedItems(eventKey) {
+        const container = document.getElementById('modal-cached-container');
+        const badge = document.getElementById('modal-cached-badge');
+        const loading = document.getElementById('modal-cached-loading');
+        const card = document.getElementById('modal-cached-card');
+
+        if (!eventKey) {
+            card.style.display = 'none';
+            return;
+        }
+        card.style.display = 'block';
+        loading.style.display = 'block';
+        container.innerHTML = '';
+        badge.textContent = 'Loading...';
+        badge.className = 'badge bg-secondary';
+
+        try {
+            const res = await fetch(`/api/seasonality/top-items-cached?events=${eventKey}`);
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (!data.success || data.count === 0) {
+                badge.textContent = 'No data';
+                badge.className = 'badge bg-warning text-dark';
+                container.innerHTML = '<p class="text-muted text-center mb-0 small">No cached data for this event. Run the pipeline first.</p>';
+                return;
+            }
+
+            const withItem = data.data.filter(d => d.top_item).length;
+            badge.textContent = `${withItem}/${data.count} paths`;
+            badge.className = 'badge bg-success';
+
+            const dateInfo = data.data[0]?.date_range;
+            let infoHtml = '';
+            if (dateInfo) {
+                infoHtml = `<div class="text-muted small mb-2"><i class="bi bi-calendar3 me-1"></i>Data: ${dateInfo.start} to ${dateInfo.end}</div>`;
+            }
+
+            const cards = data.data.map(doc => {
+                if (doc.top_item) {
+                    const item = doc.top_item;
+                    const imgSrc = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http'))
+                        ? item.item_image : '/static/placeholder.png';
+                    return `
+                        <div class="col-md-4 col-lg-3">
+                            <div class="cached-path-card">
+                                <div class="path-label" title="${doc.path_label}">${doc.path_label}</div>
+                                <div class="d-flex align-items-start gap-2">
+                                    <img src="${imgSrc}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover;background:#f1f5f9;" onerror="this.src='/static/placeholder.png'">
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="fw-semibold small text-truncate" title="${item.item_name || ''}">${item.item_name || 'Unknown'}</div>
+                                        <div class="text-muted" style="font-size:0.75rem;">${item.vendor_name || ''}</div>
+                                        <div class="d-flex justify-content-between mt-1">
+                                            <span class="text-success fw-semibold" style="font-size:0.8rem;">${formatPrice(item.price)}</span>
+                                            <span class="text-muted" style="font-size:0.75rem;">${item.total_qty || 0} sold</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="col-md-4 col-lg-3">
+                            <div class="cached-path-card">
+                                <div class="path-label" title="${doc.path_label}">${doc.path_label}</div>
+                                <div class="no-data"><i class="bi bi-dash-circle me-1"></i>No sales data</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            container.innerHTML = `${infoHtml}<div class="row g-2">${cards}</div>`;
+
+        } catch (err) {
+            loading.style.display = 'none';
+            badge.textContent = 'Error';
+            badge.className = 'badge bg-danger';
+            container.innerHTML = `<p class="text-danger text-center mb-0 small">Error: ${err.message}</p>`;
+        }
     }
 
     document.addEventListener('DOMContentLoaded', renderAll);

@@ -174,8 +174,8 @@
     }
 
     function populateCategories() {
-        const vendorCats = allVendorsData.map(v => v.vendor_shopcat).filter(c => c);
-        const itemCats = allItemsData.map(i => i.vendor_shopcat).filter(c => c);
+        const vendorCats = allVendorsData.map(v => v.vendor_shoppingCategory).filter(c => c);
+        const itemCats = allItemsData.map(i => i.vendor_shoppingCategory).filter(c => c);
         const categories = [...new Set([...vendorCats, ...itemCats])].sort();
 
         const select = document.getElementById('category_filter');
@@ -192,8 +192,8 @@
         let filteredItems = allItemsData;
 
         if (category) {
-            filteredVendors = allVendorsData.filter(v => v.vendor_shopcat === category);
-            filteredItems = allItemsData.filter(i => i.vendor_shopcat === category);
+            filteredVendors = allVendorsData.filter(v => v.vendor_shoppingCategory === category);
+            filteredItems = allItemsData.filter(i => i.vendor_shoppingCategory === category);
         }
 
         renderVendorsTable(filteredVendors);
@@ -218,7 +218,7 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="badge-category">${vendor.vendor_shopcat || 'N/A'}</span></td>
+                    <td>${renderCategoryBadge(vendor.vendor_shoppingCategory)}</td>
                     <td class="text-center"><span class="metric">${formatNumber(vendor.orders_count)}</span></td>
                     <td class="text-center"><span class="metric">${formatNumber(vendor.total_qty)}</span></td>
                 </tr>

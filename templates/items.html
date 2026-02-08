@@ -195,7 +195,7 @@
     }
 
     function populateCategories() {
-        const categories = [...new Set(currentData.map(item => item.vendor_shopcat).filter(c => c))].sort();
+        const categories = [...new Set(currentData.map(item => item.vendor_shoppingCategory).filter(c => c))].sort();
         const select = document.getElementById('category_filter');
         select.innerHTML = '<option value="">All Categories</option>';
         categories.forEach(cat => {
@@ -207,7 +207,7 @@
         const category = document.getElementById('category_filter').value;
 
         if (category) {
-            filteredData = currentData.filter(item => item.vendor_shopcat === category);
+            filteredData = currentData.filter(item => item.vendor_shoppingCategory === category);
         } else {
             filteredData = [...currentData];
         }
@@ -314,7 +314,7 @@
                     </td>
                     <td class="id-cell">${item.vendor_id || 'N/A'}</td>
                     <td>
-                        <span class="badge-category">${item.vendor_shopcat || 'N/A'}</span>
+                        ${renderCategoryBadge(item.vendor_shoppingCategory)}
                     </td>
                     <td class="text-end">
                         <span class="metric">${formatCurrency(item.price)}</span>
