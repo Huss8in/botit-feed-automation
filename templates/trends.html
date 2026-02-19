@@ -280,6 +280,82 @@
         return views.toString();
     }
 
+    async function loadCachedTrendData() {
+        // Load cached data from local MongoDB (no API call)
+        try {
+            const response = await fetch('/api/trends/hashtags-cached');
+            const result = await response.json();
+
+            if (result.success && result.data.hashtags.length > 0) {
+                // Show cached hashtags and categories
+                renderCachedHashtags(result.data.hashtags);
+                renderCachedCategories(result.data.trending_categories);
+
+                document.getElementById('stat-hashtags').textContent = result.data.hashtags.length;
+                document.getElementById('stat-categories').textContent = result.data.trending_categories.length;
+
+                if (result.updated_at) {
+                    const updatedDate = new Date(result.updated_at);
+                    document.getElementById('hashtags-count').textContent =
+                        `${result.data.hashtags.length} hashtags (cached ${updatedDate.toLocaleDateString()})`;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading cached trends:', error);
+        }
+    }
+
+    function renderCachedHashtags(hashtags) {
+        const container = document.getElementById('hashtags-container');
+        document.getElementById('hashtags-count').textContent = `${hashtags.length} hashtags (cached)`;
+
+        if (hashtags.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">No cached hashtags. Click "Analyze Trends" to fetch data.</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="d-flex flex-wrap">
+                ${hashtags.map(h => `
+                    <div class="hashtag-chip ${getHashtagChipClass(h.categories)}" title="Categories: ${(h.categories || []).join(', ')}">
+                        <span>#${h.hashtag}</span>
+                        ${h.views ? `<span class="views">${formatViews(h.views)}</span>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderCachedCategories(categories) {
+        const container = document.getElementById('categories-container');
+        document.getElementById('categories-count').textContent = `${categories.length} categories (cached)`;
+
+        if (categories.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">No cached categories. Click "Analyze Trends" to fetch data.</p>';
+            return;
+        }
+
+        const maxScore = Math.max(...categories.map(c => c.score));
+
+        container.innerHTML = categories.map(cat => {
+            const widthPercent = (cat.score / maxScore) * 100;
+            const hashtags = (cat.hashtags || []).slice(0, 5).map(h => `#${h}`).join(', ');
+
+            return `
+                <div class="category-bar">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="category-name">${cat.category}</span>
+                        <span class="category-score">Score: ${cat.score.toFixed(2)}</span>
+                    </div>
+                    <div class="bg-light rounded" style="height: 8px; width: 100%;">
+                        <div class="bar-fill" style="width: ${widthPercent}%;"></div>
+                    </div>
+                    <div class="hashtag-tags mt-2">${hashtags}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
     async function loadTrendData() {
         const daysBack = document.getElementById('days_back').value;
         const topCategories = document.getElementById('top_categories').value;
@@ -292,6 +368,10 @@
         document.getElementById('category-details-container').innerHTML = '';
 
         try {
+            // First refresh the TikTok hashtags cache
+            await fetch('/api/trends/refresh', { method: 'POST' });
+
+            // Then load full suggestions (which also calls the API but gets vendors/items from prod)
             const response = await fetch(`/api/trends/suggestions?days_back=${daysBack}&top_categories=${topCategories}&items_per_category=${itemsLimit}&vendors_per_category=${itemsLimit}`);
             const result = await response.json();
 
@@ -420,6 +500,7 @@
                                                     <div class="flex-grow-1 min-w-0">
                                                         <div class="fw-semibold small text-truncate" title="${item.item_name}">${item.item_name || 'Unknown'}</div>
                                                         <div class="text-muted small text-truncate">${item.vendor_name || 'Unknown'}</div>
+                                                        <div class="text-muted" style="font-size:0.65rem;opacity:0.7;">ID: ${item.item_id || 'N/A'} | V: ${item.vendor_id || 'N/A'}</div>
                                                         <div class="d-flex justify-content-between align-items-center mt-1">
                                                             <span class="trend-badge ${idx < 3 ? 'hot' : ''}">${item.total_qty || 0} sold</span>
                                                             <span class="fw-semibold text-success small">${item.price ? 'EGP ' + parseFloat(item.price).toFixed(0) : ''}</span>
@@ -443,6 +524,7 @@
                                                     <img src="${(vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http')) ? vendor.vendor_image : '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/placeholder.png'">
                                                     <div class="flex-grow-1 min-w-0">
                                                         <div class="fw-semibold small text-truncate" title="${vendor.vendor_name}">${vendor.vendor_name || 'Unknown'}</div>
+                                                        <div class="text-muted" style="font-size:0.65rem;opacity:0.7;">ID: ${vendor.vendor_id || 'N/A'}</div>
                                                         <span class="badge-category ${getCategoryClass(vendor.vendor_shoppingCategory)}" style="font-size: 0.7rem;">${vendor.vendor_shoppingCategory || 'N/A'}</span>
                                                         <div class="d-flex gap-2 mt-1">
                                                             <span class="trend-badge ${idx < 3 ? 'hot' : ''}">${vendor.orders_count || 0} orders</span>
@@ -479,9 +561,9 @@
         `;
     }
 
-    // Auto-load on page load
+    // Load cached data on page load (no API call). Click "Analyze Trends" to refresh.
     document.addEventListener('DOMContentLoaded', function() {
-        loadTrendData();
+        loadCachedTrendData();
     });
 </script>
 {% endblock %}

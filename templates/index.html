@@ -215,6 +215,7 @@
                             <img src="${imgSrc}" alt="" style="width: 32px; height: 32px;" onerror="this.src='https://ui-avatars.com/api/?name=V&background=f1f5f9&color=475569&size=32'">
                             <div class="info">
                                 <span class="name" style="font-size: 0.85rem;">${vendor.vendor_name || 'Unknown'}</span>
+                                <div style="font-size:0.65rem;color:#94a3b8;">ID: ${vendor.vendor_id || 'N/A'}</div>
                             </div>
                         </div>
                     </td>
@@ -243,10 +244,11 @@
                             <img src="${itemImg}" alt="" style="width: 32px; height: 32px;" onerror="this.src='https://ui-avatars.com/api/?name=I&background=f1f5f9&color=475569&size=32'">
                             <div class="info">
                                 <span class="name" style="font-size: 0.85rem;">${item.item_name || 'Unknown'}</span>
+                                <div style="font-size:0.65rem;color:#94a3b8;">ID: ${item.item_id || 'N/A'}</div>
                             </div>
                         </div>
                     </td>
-                    <td style="font-size: 0.8rem; color: #64748b;">${item.vendor_name || 'N/A'}</td>
+                    <td style="font-size: 0.8rem; color: #64748b;">${item.vendor_name || 'N/A'}<div style="font-size:0.65rem;color:#94a3b8;">V: ${item.vendor_id || 'N/A'}</div></td>
                     <td class="text-end"><span class="metric">${formatCurrency(item.price)}</span></td>
                     <td class="text-center"><span class="metric">${formatNumber(item.total_qty)}</span></td>
                 </tr>

@@ -45,6 +45,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "ramadan": {
         "name": "Ramadan",
+        "dates": {
+            2024: {"start": "2024-03-10", "duration_days": 30},
+            2025: {"start": "2025-02-28", "duration_days": 30},
+            2026: {"start": "2026-02-17", "duration_days": 30}
+        },
         "category_paths": [
             # Dates and dried fruits
             {
@@ -113,6 +118,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "eid_al_fitr": {
         "name": "Eid al-Fitr",
+        "dates": {
+            2024: {"start": "2024-04-10", "duration_days": 4},
+            2025: {"start": "2025-03-30", "duration_days": 4},
+            2026: {"start": "2026-03-20", "duration_days": 4}
+        },
         "category_paths": [
             # Kahk and sweets
             {
@@ -180,6 +190,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "eid_al_adha": {
         "name": "Eid al-Adha",
+        "dates": {
+            2024: {"start": "2024-06-16", "duration_days": 4},
+            2025: {"start": "2025-06-06", "duration_days": 4},
+            2026: {"start": "2026-05-27", "duration_days": 4}
+        },
         "category_paths": [
             # Fresh meat
             {
@@ -231,6 +246,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "mawlid": {
         "name": "Prophet's Birthday (Mawlid)",
+        "dates": {
+            2024: {"start": "2024-09-15", "duration_days": 1},
+            2025: {"start": "2025-09-04", "duration_days": 1},
+            2026: {"start": "2026-08-25", "duration_days": 1}
+        },
         "category_paths": [
             # Traditional sweets (halawet el-moulid)
             {
@@ -259,6 +279,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "coptic_christmas": {
         "name": "Coptic Christmas",
+        "dates": {
+            2024: {"start": "2024-01-07", "duration_days": 1},
+            2025: {"start": "2025-01-07", "duration_days": 1},
+            2026: {"start": "2026-01-07", "duration_days": 1}
+        },
         "category_paths": [
             # Christmas decorations
             {
@@ -293,6 +318,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "sham_el_nessim": {
         "name": "Sham El-Nessim (Spring Festival)",
+        "dates": {
+            2024: {"start": "2024-05-06", "duration_days": 1},
+            2025: {"start": "2025-04-21", "duration_days": 1},
+            2026: {"start": "2026-04-13", "duration_days": 1}
+        },
         "category_paths": [
             # Traditional foods (feseekh, colored eggs)
             {
@@ -334,6 +364,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "valentines_day": {
         "name": "Valentine's Day",
+        "dates": {
+            2024: {"start": "2024-02-14", "duration_days": 1},
+            2025: {"start": "2025-02-14", "duration_days": 1},
+            2026: {"start": "2026-02-14", "duration_days": 1}
+        },
         "category_paths": [
             # Flowers
             {
@@ -407,6 +442,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "mothers_day": {
         "name": "Mother's Day",
+        "dates": {
+            2024: {"start": "2024-03-21", "duration_days": 1},
+            2025: {"start": "2025-03-21", "duration_days": 1},
+            2026: {"start": "2026-03-21", "duration_days": 1}
+        },
         "category_paths": [
             # Flowers
             {
@@ -484,6 +524,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "back_to_school": {
         "name": "Back to School",
+        "dates": {
+            2024: {"start": "2024-09-01", "duration_days": 30},
+            2025: {"start": "2025-09-01", "duration_days": 30},
+            2026: {"start": "2026-09-01", "duration_days": 30}
+        },
         "category_paths": [
             # School bags/backpacks
             {
@@ -558,6 +603,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "black_friday": {
         "name": "Black Friday / White Friday",
+        "dates": {
+            2024: {"start": "2024-11-29", "duration_days": 3},
+            2025: {"start": "2025-11-28", "duration_days": 3},
+            2026: {"start": "2026-11-27", "duration_days": 3}
+        },
         "category_paths": [
             # Smartphones
             {
@@ -619,6 +669,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "singles_day": {
         "name": "Singles' Day (11.11)",
+        "dates": {
+            2024: {"start": "2024-11-11", "duration_days": 1},
+            2025: {"start": "2025-11-11", "duration_days": 1},
+            2026: {"start": "2026-11-11", "duration_days": 1}
+        },
         "category_paths": [
             # Electronics
             {
@@ -655,6 +710,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "year_end_sales": {
         "name": "Year-End Sales",
+        "dates": {
+            2024: {"start": "2024-12-20", "duration_days": 12},
+            2025: {"start": "2025-12-20", "duration_days": 12},
+            2026: {"start": "2026-12-20", "duration_days": 12}
+        },
         "category_paths": [
             # Fashion clearance
             {
@@ -703,6 +763,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "summer_season": {
         "name": "Summer Season",
+        "dates": {
+            2024: {"start": "2024-06-01", "duration_days": 90},
+            2025: {"start": "2025-06-01", "duration_days": 90},
+            2026: {"start": "2026-06-01", "duration_days": 90}
+        },
         "category_paths": [
             # Swimwear
             {
@@ -766,6 +831,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "winter_season": {
         "name": "Winter Season",
+        "dates": {
+            2024: {"start": "2024-12-01", "duration_days": 90},
+            2025: {"start": "2025-12-01", "duration_days": 90},
+            2026: {"start": "2026-12-01", "duration_days": 90}
+        },
         "category_paths": [
             # Jackets and coats
             {
@@ -826,6 +896,11 @@ EVENT_CATEGORY_MAPPING = {
 
     "wedding_season": {
         "name": "Wedding Season (Spring/Summer)",
+        "dates": {
+            2024: {"start": "2024-04-01", "duration_days": 60},
+            2025: {"start": "2025-04-01", "duration_days": 60},
+            2026: {"start": "2026-04-01", "duration_days": 60}
+        },
         "category_paths": [
             # Wedding dresses
             {
@@ -922,6 +997,22 @@ def get_event_name(event_key: str) -> str:
     return event_key
 
 
+def get_event_dates(event_key: str) -> dict:
+    """
+    Get the dates dict for an event (per-year start dates and durations).
+
+    Args:
+        event_key: The event identifier
+
+    Returns:
+        Dict of {year: {"start": "YYYY-MM-DD", "duration_days": N}}, or empty dict if not found
+    """
+    event = EVENT_CATEGORY_MAPPING.get(event_key)
+    if event:
+        return event.get("dates", {})
+    return {}
+
+
 def get_all_events() -> list:
     """
     Get list of all event keys.
@@ -949,6 +1040,55 @@ def get_events_by_category(shopping_category: str) -> list:
                 matching_events.append(event_key)
                 break
     return matching_events
+
+
+def get_nearest_upcoming_event(lookahead_days: int = 60) -> dict:
+    """
+    Find the nearest upcoming (or currently active) seasonal event.
+
+    Iterates all events and their per-year date dicts, finds events that are
+    currently active or starting within `lookahead_days` days from today.
+
+    Returns:
+        Dict with {event_key, name, start_date, days_until, duration_days, is_active, year}
+        for the nearest event, or None if nothing upcoming.
+    """
+    from datetime import datetime, timedelta
+
+    today = datetime.now().date()
+    best = None
+
+    for event_key, event_data in EVENT_CATEGORY_MAPPING.items():
+        dates = event_data.get("dates", {})
+        for year, date_info in dates.items():
+            start = datetime.strptime(date_info["start"], "%Y-%m-%d").date()
+            duration = date_info.get("duration_days", 1)
+            end = start + timedelta(days=duration)
+
+            days_until = (start - today).days
+            is_active = start <= today <= end
+
+            # Include if active now or starting within lookahead window
+            if is_active or (0 < days_until <= lookahead_days):
+                # Score: active events get priority (days_until = -1), then by proximity
+                score = -1 if is_active else days_until
+
+                if best is None or score < best["_score"]:
+                    best = {
+                        "event_key": event_key,
+                        "name": event_data.get("name", event_key),
+                        "start_date": date_info["start"],
+                        "days_until": max(days_until, 0),
+                        "duration_days": duration,
+                        "is_active": is_active,
+                        "year": year,
+                        "_score": score,
+                    }
+
+    if best:
+        best.pop("_score")
+        return best
+    return None
 
 
 def build_mongo_match_conditions(event_key: str, item_prefix: str = "item") -> list:

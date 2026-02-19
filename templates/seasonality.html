@@ -177,19 +177,19 @@
                     </div>
                 </div>
 
-                <!-- Cached Top Items per Category Path for this Event -->
-                <div class="data-card mb-4" id="modal-cached-card">
+                <!-- Historical Best Sellers Section -->
+                <div class="data-card mb-4" id="historical-items-card" style="display:none;">
                     <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2 text-primary"></i>Top Item per Category Path (Cached)</h6>
-                        <span class="badge bg-secondary" id="modal-cached-badge">-</span>
+                        <h6 class="mb-0"><i class="bi bi-clock-history me-2 text-info"></i>Best Sellers in Previous Years</h6>
+                        <span class="badge bg-secondary" id="historical-items-badge">Loading...</span>
                     </div>
-                    <div id="modal-cached-loading" class="text-center py-3" style="display:none;">
-                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <div id="historical-items-loading" class="text-center py-4" style="display:none;">
+                        <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
-                    <div id="modal-cached-container" class="p-3">
-                        <p class="text-muted text-center mb-0 small">No cached data</p>
+                    <div id="historical-items-container" class="p-3">
+                        <p class="text-muted text-center mb-0">No historical data</p>
                     </div>
                 </div>
 
@@ -224,10 +224,10 @@
                     </div>
                 </div>
 
-                <!-- Items Section (moved to top) -->
+                <!-- Items Section -->
                 <div class="data-card mb-4">
                     <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-box-seam me-2"></i>Top Items</h6>
+                        <h6 class="mb-0" id="items-section-title"><i class="bi bi-lightning-charge me-2"></i>Top Item per Category Path</h6>
                         <span class="badge bg-secondary" id="items-count">0 items</span>
                     </div>
                     <div id="items-loading" class="text-center py-4" style="display: none;">
@@ -1382,6 +1382,7 @@
                                     <div class="flex-grow-1 min-w-0">
                                         <div class="fw-semibold small text-truncate" title="${item.item_name || ''}">${item.item_name || 'Unknown'}</div>
                                         <div class="text-muted" style="font-size:0.75rem;">${item.vendor_name || ''}</div>
+                                        <div class="text-muted" style="font-size:0.65rem;opacity:0.7;">ID: ${item.item_id || 'N/A'} | V: ${item.vendor_id || 'N/A'}</div>
                                         <div class="d-flex justify-content-between mt-1">
                                             <span class="text-success fw-semibold" style="font-size:0.8rem;">${formatPrice(item.price)}</span>
                                             <span class="text-muted" style="font-size:0.75rem;">${item.total_qty || 0} sold</span>
@@ -1511,10 +1512,10 @@
         document.getElementById('modal_end_date').value = endDate.toISOString().split('T')[0];
 
         // Reset containers
-        document.getElementById('vendors-container').innerHTML = '<p class="text-muted text-center mb-0">Loading...</p>';
+        document.getElementById('vendors-container').innerHTML = '<p class="text-muted text-center mb-0">Select a category and click Search to load vendors</p>';
         document.getElementById('items-container').innerHTML = '<p class="text-muted text-center mb-0">Loading...</p>';
         document.getElementById('vendors-count').textContent = '0 vendors';
-        document.getElementById('items-count').textContent = '0 items';
+        document.getElementById('items-count').textContent = '0 paths';
 
         // Reset subcategory dropdown
         document.getElementById('modal_subcategory_select').innerHTML = '<option value="">All subcategories</option>';
@@ -1526,16 +1527,16 @@
         }
         eventModal.show();
 
-        // Load cached per-path data for this event
+        // Load cached per-path data into the items section
         const eventKey = eventNameToKey[currentEvent.name] || null;
-        loadModalCachedItems(eventKey);
-
-        // Auto-fetch data if there are suggested categories
-        if (currentEvent.suggestedCategories && currentEvent.suggestedCategories.length > 0) {
-            fetchVendorsAndItems();
+        if (eventKey) {
+            loadModalCachedItems(eventKey);
+            loadHistoricalItems(eventKey);
         } else {
-            document.getElementById('vendors-container').innerHTML = '<p class="text-muted text-center mb-0">No suggested categories for this event. Select a category and click Search.</p>';
-            document.getElementById('items-container').innerHTML = '<p class="text-muted text-center mb-0">No suggested categories for this event. Select a category and click Search.</p>';
+            document.getElementById('items-section-title').innerHTML = '<i class="bi bi-box-seam me-2"></i>Top Items';
+            document.getElementById('items-container').innerHTML = '<p class="text-muted text-center mb-0">No cached data for this event. Select a category and click Search.</p>';
+            document.getElementById('items-count').textContent = '0 items';
+            document.getElementById('historical-items-card').style.display = 'none';
         }
     }
 
@@ -1587,6 +1588,10 @@
             alert('Please select a date range');
             return;
         }
+
+        // Switch title back to live mode
+        document.getElementById('items-section-title').innerHTML = '<i class="bi bi-box-seam me-2"></i>Top Items';
+        document.getElementById('items-count').className = 'badge bg-secondary';
 
         // Show loading
         document.getElementById('vendors-loading').style.display = 'block';
@@ -1761,21 +1766,117 @@
         `;
     }
 
-    async function loadModalCachedItems(eventKey) {
-        const container = document.getElementById('modal-cached-container');
-        const badge = document.getElementById('modal-cached-badge');
-        const loading = document.getElementById('modal-cached-loading');
-        const card = document.getElementById('modal-cached-card');
+    async function loadHistoricalItems(eventKey) {
+        const card = document.getElementById('historical-items-card');
+        const container = document.getElementById('historical-items-container');
+        const badge = document.getElementById('historical-items-badge');
+        const loading = document.getElementById('historical-items-loading');
 
-        if (!eventKey) {
-            card.style.display = 'none';
-            return;
-        }
         card.style.display = 'block';
         loading.style.display = 'block';
         container.innerHTML = '';
         badge.textContent = 'Loading...';
         badge.className = 'badge bg-secondary';
+
+        try {
+            const res = await fetch(`/api/seasonality/event/historical-items?event_key=${eventKey}&current_year=${selectedYear}`);
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (!data.success) {
+                badge.textContent = 'Error';
+                badge.className = 'badge bg-danger';
+                container.innerHTML = `<p class="text-danger text-center mb-0">${data.error}</p>`;
+                return;
+            }
+
+            const years = Object.keys(data.years).sort();
+            if (years.length === 0) {
+                badge.textContent = 'No data';
+                container.innerHTML = '<p class="text-muted text-center mb-0">No historical date data available for this event</p>';
+                return;
+            }
+
+            const totalItems = years.reduce((sum, y) => sum + (data.years[y].items?.length || 0), 0);
+            badge.textContent = `${totalItems} items across ${years.length} year${years.length > 1 ? 's' : ''}`;
+            badge.className = 'badge bg-info';
+
+            // Build year tabs
+            const tabsHtml = years.map((y, i) => {
+                const yearData = data.years[y];
+                const itemCount = yearData.items?.length || 0;
+                return `<li class="nav-item">
+                    <button class="nav-link ${i === 0 ? 'active' : ''}" data-bs-toggle="pill" data-bs-target="#hist-year-${y}" type="button">
+                        ${y} <span class="badge bg-dark ms-1">${itemCount}</span>
+                    </button>
+                </li>`;
+            }).join('');
+
+            // Build year tab content
+            const tabContentHtml = years.map((y, i) => {
+                const yearData = data.years[y];
+                const items = yearData.items || [];
+
+                let contentInner;
+                if (items.length === 0) {
+                    contentInner = '<p class="text-muted text-center mb-0">No sales data found for this period</p>';
+                } else {
+                    const cardsHtml = items.map(item => {
+                        const imgSrc = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http'))
+                            ? item.item_image : '/static/placeholder.png';
+                        const catPath = [item.item_shoppingCategory, item.item_shoppingSubcategory, item.item_itemCategory, item.item_itemSubcategory].filter(Boolean).join(' > ');
+                        return `
+                            <div class="col-md-4 col-lg-3">
+                                <div class="cached-path-card">
+                                    <div class="path-label" title="${catPath}">${catPath || 'Uncategorized'}</div>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <img src="${imgSrc}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover;background:#f1f5f9;" onerror="this.src='/static/placeholder.png'">
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="fw-semibold small text-truncate" title="${item.item_name || ''}">${item.item_name || 'Unknown'}</div>
+                                            <div class="text-muted" style="font-size:0.75rem;">${item.vendor_name || ''}</div>
+                                            <div class="d-flex justify-content-between mt-1">
+                                                <span class="text-success fw-semibold" style="font-size:0.8rem;">${formatPrice(item.price)}</span>
+                                                <span class="text-muted" style="font-size:0.75rem;">${item.total_qty || 0} sold &middot; ${item.orders_count || 0} orders</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }).join('');
+                    contentInner = `<div class="row g-2">${cardsHtml}</div>`;
+                }
+
+                return `<div class="tab-pane fade ${i === 0 ? 'show active' : ''}" id="hist-year-${y}">
+                    <div class="alert alert-light py-2 mb-3">
+                        <small><i class="bi bi-calendar3 me-1"></i>Event started: <strong>${yearData.event_start}</strong> &mdash; Data range: ${yearData.date_range.start} to ${yearData.date_range.end}</small>
+                    </div>
+                    ${contentInner}
+                </div>`;
+            }).join('');
+
+            container.innerHTML = `
+                <ul class="nav nav-pills mb-3" role="tablist">${tabsHtml}</ul>
+                <div class="tab-content">${tabContentHtml}</div>
+            `;
+
+        } catch (err) {
+            loading.style.display = 'none';
+            badge.textContent = 'Error';
+            badge.className = 'badge bg-danger';
+            container.innerHTML = `<p class="text-danger text-center mb-0">Error: ${err.message}</p>`;
+        }
+    }
+
+    async function loadModalCachedItems(eventKey) {
+        const container = document.getElementById('items-container');
+        const badge = document.getElementById('items-count');
+        const loading = document.getElementById('items-loading');
+        const title = document.getElementById('items-section-title');
+
+        title.innerHTML = '<i class="bi bi-lightning-charge me-2"></i>Top Item per Category Path';
+        loading.style.display = 'block';
+        container.innerHTML = '';
+        badge.textContent = 'Loading...';
 
         try {
             const res = await fetch(`/api/seasonality/top-items-cached?events=${eventKey}`);
@@ -1784,8 +1885,7 @@
 
             if (!data.success || data.count === 0) {
                 badge.textContent = 'No data';
-                badge.className = 'badge bg-warning text-dark';
-                container.innerHTML = '<p class="text-muted text-center mb-0 small">No cached data for this event. Run the pipeline first.</p>';
+                container.innerHTML = '<p class="text-muted text-center mb-0">No cached data for this event. Run <code>python run_seasonality_pipeline.py</code> first.</p>';
                 return;
             }
 
@@ -1796,7 +1896,7 @@
             const dateInfo = data.data[0]?.date_range;
             let infoHtml = '';
             if (dateInfo) {
-                infoHtml = `<div class="text-muted small mb-2"><i class="bi bi-calendar3 me-1"></i>Data: ${dateInfo.start} to ${dateInfo.end}</div>`;
+                infoHtml = `<div class="alert alert-info py-2 mb-3"><small><i class="bi bi-lightning-charge me-1"></i>Cached data from <strong>${dateInfo.start}</strong> to <strong>${dateInfo.end}</strong> &mdash; one top item per category path</small></div>`;
             }
 
             const cards = data.data.map(doc => {
@@ -1813,6 +1913,7 @@
                                     <div class="flex-grow-1 min-w-0">
                                         <div class="fw-semibold small text-truncate" title="${item.item_name || ''}">${item.item_name || 'Unknown'}</div>
                                         <div class="text-muted" style="font-size:0.75rem;">${item.vendor_name || ''}</div>
+                                        <div class="text-muted" style="font-size:0.65rem;opacity:0.7;">ID: ${item.item_id || 'N/A'} | V: ${item.vendor_id || 'N/A'}</div>
                                         <div class="d-flex justify-content-between mt-1">
                                             <span class="text-success fw-semibold" style="font-size:0.8rem;">${formatPrice(item.price)}</span>
                                             <span class="text-muted" style="font-size:0.75rem;">${item.total_qty || 0} sold</span>
@@ -1840,7 +1941,7 @@
             loading.style.display = 'none';
             badge.textContent = 'Error';
             badge.className = 'badge bg-danger';
-            container.innerHTML = `<p class="text-danger text-center mb-0 small">Error: ${err.message}</p>`;
+            container.innerHTML = `<p class="text-danger text-center mb-0">Error loading cached data: ${err.message}</p>`;
         }
     }
 

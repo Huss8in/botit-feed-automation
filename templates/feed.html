@@ -1,644 +1,1081 @@
 {% extends "base.html" %}
 
-{% block title %}Feed Generator - Botit Analytics{% endblock %}
+{% block title %}Today's Feed - Botit Analytics{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2><i class="bi bi-magic me-2"></i>Feed Generator</h2>
-    <p>AI-powered feed recommendations based on top performers, events & trends</p>
+    <h2><i class="bi bi-lightning-charge me-2"></i>Today's Feed</h2>
+    <p>Auto-loaded feed recommendations — copy IDs and add them to the Botit app</p>
 </div>
 
-<!-- Date Filters -->
-<div class="filter-card">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="text-muted me-2">Quick Select:</span>
-                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="2">2 Days</button>
-                <button class="btn btn-sm btn-outline-secondary date-btn active" data-days="7">7 Days</button>
-                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="14">14 Days</button>
-                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="30">30 Days</button>
-                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="90">3 Months</button>
-                <button class="btn btn-sm btn-outline-secondary date-btn" data-days="365">1 Year</button>
-            </div>
+<!-- Section 1: Event Picks -->
+<div class="data-card mb-4" id="eventPicksCard">
+    <div class="card-header">
+        <h5><i class="bi bi-calendar-event me-2"></i>Event Picks</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success" id="eventBadge" style="display:none;"></span>
+            <div class="sort-bar" id="eventPicksSortBar" style="display:none;"></div>
         </div>
-        <div class="col-md-4">
-            <div class="d-flex gap-2 align-items-center">
-                <input type="date" class="form-control form-control-sm" id="startDate">
-                <span class="text-muted">to</span>
-                <input type="date" class="form-control form-control-sm" id="endDate">
-                <button class="btn btn-sm btn-primary" onclick="applyCustomDates()">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
+    </div>
+    <div class="card-body p-3">
+        <div class="loading-overlay" id="eventPicksLoading" style="display:block;">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 text-muted">Loading nearest event...</p>
         </div>
+        <div id="eventPicksInfo"></div>
+        <div id="eventPicksContent"></div>
     </div>
 </div>
 
-<!-- Quick Stats Overview -->
-<div class="stats-grid" id="quickStats">
-    <div class="stat-card">
-        <div class="stat-icon purple"><i class="bi bi-shop"></i></div>
-        <div class="stat-label">Top Vendors</div>
-        <div class="stat-value" id="statVendors">-</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon blue"><i class="bi bi-box-seam"></i></div>
-        <div class="stat-label">Top Items</div>
-        <div class="stat-value" id="statItems">-</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green"><i class="bi bi-calendar-event"></i></div>
-        <div class="stat-label">Active Events</div>
-        <div class="stat-value" id="statEvents">-</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon orange"><i class="bi bi-tiktok"></i></div>
-        <div class="stat-label">Trending Tags</div>
-        <div class="stat-value" id="statHashtags">-</div>
-    </div>
-</div>
-
-<!-- Data Sources Preview -->
-<div class="row mb-4">
-    <!-- Top Vendors Preview -->
-    <div class="col-md-6 mb-3">
-        <div class="data-card h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-shop me-2"></i>Top Vendors <span class="date-range-label text-muted fs-6">(Last 7 Days)</span></h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="loading-overlay" id="vendorsLoading">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2 text-muted">Loading vendors...</p>
-                </div>
-                <div id="vendorsPreview" class="p-3">
-                    <div class="empty-state"><i class="bi bi-shop"></i><p>No vendors loaded</p></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Top Items Preview -->
-    <div class="col-md-6 mb-3">
-        <div class="data-card h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-box-seam me-2"></i>Top Items <span class="date-range-label text-muted fs-6">(Last 7 Days)</span></h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="loading-overlay" id="itemsLoading">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2 text-muted">Loading items...</p>
-                </div>
-                <div id="itemsPreview" class="p-3">
-                    <div class="empty-state"><i class="bi bi-box-seam"></i><p>No items loaded</p></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <!-- Current Events -->
-    <div class="col-md-6 mb-3">
-        <div class="data-card h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-calendar-event me-2"></i>Upcoming Events</h5>
-            </div>
-            <div class="card-body p-0">
-                <div id="eventsPreview" class="p-3">
-                    <!-- Will be populated by JS -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- TikTok Trends -->
-    <div class="col-md-6 mb-3">
-        <div class="data-card h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-tiktok me-2"></i>TikTok Trending</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="loading-overlay" id="trendsLoading">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2 text-muted">Loading trends...</p>
-                </div>
-                <div id="trendsPreview" class="p-3">
-                    <div class="empty-state"><i class="bi bi-tiktok"></i><p>No trends loaded</p></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Generate Feed Section -->
+<!-- Section 2: Top Performers -->
 <div class="data-card mb-4">
     <div class="card-header">
-        <h5><i class="bi bi-magic me-2"></i>Generate Today's Feed</h5>
-        <span class="badge bg-warning text-dark"><i class="bi bi-lightning-charge"></i> Uses AI Tokens</span>
+        <h5><i class="bi bi-trophy me-2"></i>Top Performers <span class="text-muted fs-6">(Last 7 Days)</span></h5>
     </div>
-    <div class="card-body p-4">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <p class="mb-2 text-muted">Generate AI-powered feed recommendations combining:</p>
-                <ul class="mb-3">
-                    <li>Top performing vendors & items from <strong id="generateDateRange">the selected period</strong></li>
-                    <li>Relevant products for upcoming events/seasons</li>
-                    <li>Products aligned with current TikTok trends</li>
-                </ul>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="includeVendors" checked>
-                    <label class="form-check-label" for="includeVendors">Top Vendors</label>
+    <div class="card-body p-0">
+        <ul class="nav nav-tabs px-3 pt-2" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#topItemsTab" type="button">Items</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#topVendorsTab" type="button">Vendors</button>
+            </li>
+            <li class="ms-auto d-flex align-items-center" id="topPerformersSortBar" style="display:none !important;"></li>
+        </ul>
+        <div class="tab-content p-3">
+            <div class="tab-pane fade show active" id="topItemsTab">
+                <div class="loading-overlay" id="topItemsLoading" style="display:block;">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Loading top items...</p>
                 </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="includeItems" checked>
-                    <label class="form-check-label" for="includeItems">Top Items</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="includeEvents" checked>
-                    <label class="form-check-label" for="includeEvents">Events</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="includeTrends" checked>
-                    <label class="form-check-label" for="includeTrends">TikTok Trends</label>
-                </div>
+                <div id="topItemsContent"></div>
             </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-primary btn-lg" id="generateBtn" onclick="generateFeed()">
-                    <i class="bi bi-magic me-2"></i>Generate Feed
-                </button>
+            <div class="tab-pane fade" id="topVendorsTab">
+                <div class="loading-overlay" id="topVendorsLoading" style="display:block;">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Loading top vendors...</p>
+                </div>
+                <div id="topVendorsContent"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Generated Feed Results -->
-<div class="data-card mb-4" id="feedResultsCard" style="display: none;">
+<!-- Section 3: Trending Up -->
+<div class="data-card mb-4">
     <div class="card-header">
-        <h5><i class="bi bi-list-check me-2"></i>Generated Feed Recommendations</h5>
-        <div>
-            <button class="btn btn-sm btn-outline-secondary me-2" onclick="copyFeed()">
-                <i class="bi bi-clipboard"></i> Copy
-            </button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="downloadFeed()">
-                <i class="bi bi-download"></i> Download
-            </button>
+        <h5><i class="bi bi-graph-up-arrow me-2"></i>Trending Up <span class="text-muted fs-6">(7d vs prev 7d)</span></h5>
+        <div class="sort-bar" id="trendingUpSortBar" style="display:none;"></div>
+    </div>
+    <div class="card-body p-3">
+        <div class="loading-overlay" id="trendingUpLoading" style="display:block;">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 text-muted">Calculating momentum...</p>
+        </div>
+        <div id="trendingUpContent"></div>
+    </div>
+</div>
+
+<!-- Section 4: Previously Worked -->
+<div class="data-card mb-4" id="historicalCard" style="display:none;">
+    <div class="card-header">
+        <h5><i class="bi bi-clock-history me-2"></i>Previously Worked <span class="text-muted fs-6" id="historicalLabel"></span></h5>
+    </div>
+    <div class="card-body p-3">
+        <div class="loading-overlay" id="historicalLoading" style="display:block;">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 text-muted">Loading historical data...</p>
+        </div>
+        <div id="historicalContent"></div>
+    </div>
+</div>
+
+<!-- Item/Vendor Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+            <div class="modal-header border-0 pb-0">
+                <div id="detailBadges"></div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2" id="detailBody"></div>
+            <div class="modal-footer border-0 pt-0" id="detailFooter"></div>
         </div>
     </div>
-    <div class="card-body">
-        <div class="loading-overlay" id="generateLoading">
-            <div class="spinner-border" role="status"></div>
-            <p class="mt-2 text-muted">Generating AI recommendations...</p>
-        </div>
-        <div id="feedResults" class="feed-results">
-            <!-- AI-generated content will appear here -->
+</div>
+
+<!-- Section 5: AI Feed Generator (collapsed) -->
+<div class="accordion mb-4" id="aiAccordion">
+    <div class="accordion-item data-card">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#aiSection">
+                <i class="bi bi-magic me-2"></i>AI Feed Generator
+                <span class="badge bg-warning text-dark ms-2"><i class="bi bi-lightning-charge"></i> Uses AI Tokens</span>
+            </button>
+        </h2>
+        <div id="aiSection" class="accordion-collapse collapse" data-bs-parent="#aiAccordion">
+            <div class="accordion-body">
+                <p class="text-muted mb-3">Generate a GPT-powered feed plan combining all data sources above.</p>
+                <div class="d-flex flex-wrap gap-3 mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeVendors" checked>
+                        <label class="form-check-label" for="includeVendors">Top Vendors</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeItems" checked>
+                        <label class="form-check-label" for="includeItems">Top Items</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeEvents" checked>
+                        <label class="form-check-label" for="includeEvents">Events</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeTrends" checked>
+                        <label class="form-check-label" for="includeTrends">TikTok Trends</label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="generateBtn" onclick="generateFeed()">
+                    <i class="bi bi-magic me-2"></i>Generate Feed
+                </button>
+                <div id="feedResultsCard" style="display:none;" class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Generated Recommendations</strong>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-1" onclick="copyFeed()"><i class="bi bi-clipboard"></i> Copy</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="downloadFeed()"><i class="bi bi-download"></i> Download</button>
+                        </div>
+                    </div>
+                    <div class="loading-overlay" id="generateLoading">
+                        <div class="spinner-border" role="status"></div>
+                        <p class="mt-2 text-muted">Generating AI recommendations...</p>
+                    </div>
+                    <div id="feedResults" class="feed-results border rounded p-3 bg-light"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    .preview-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    .preview-list li {
+    .feed-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
         display: flex;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #f1f5f9;
+        gap: 14px;
+        align-items: flex-start;
+        transition: box-shadow 0.2s;
     }
-    .preview-list li:last-child {
-        border-bottom: none;
+    .feed-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
-    .preview-list img {
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
+    .feed-card img {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
         object-fit: cover;
-        margin-right: 12px;
+        flex-shrink: 0;
+        border: 1px solid #e2e8f0;
     }
-    .preview-list .name {
+    .feed-card .card-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .feed-card .card-name {
         font-weight: 600;
         color: #1e293b;
-        font-size: 0.9rem;
+        font-size: 0.92rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .preview-list .meta {
-        font-size: 0.75rem;
+    .feed-card .card-vendor {
+        font-size: 0.78rem;
         color: #64748b;
     }
-    .preview-list .rank {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
+    .feed-card .card-stats {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.7rem;
-        margin-right: 12px;
-        background: #f1f5f9;
-        color: #64748b;
-    }
-    .preview-list .rank.gold { background: #fef3c7; color: #d97706; }
-    .preview-list .rank.silver { background: #e2e8f0; color: #64748b; }
-    .preview-list .rank.bronze { background: #ffedd5; color: #c2410c; }
-
-    .event-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 8px 14px;
-        margin: 4px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-    .event-chip.religious { background: #dcfce7; color: #16a34a; }
-    .event-chip.national { background: #dbeafe; color: #2563eb; }
-    .event-chip.shopping { background: #fef3c7; color: #d97706; }
-    .event-chip.seasonal { background: #ede9fe; color: #7c3aed; }
-    .event-chip i { margin-right: 6px; }
-
-    .hashtag-chip {
-        display: inline-block;
-        padding: 6px 12px;
-        margin: 3px;
-        border-radius: 16px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        background: #f1f5f9;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 0.78rem;
         color: #475569;
     }
-    .hashtag-chip.fashion { background: #fce7f3; color: #db2777; }
-    .hashtag-chip.beauty { background: #ede9fe; color: #7c3aed; }
-    .hashtag-chip.food { background: #ffedd5; color: #ea580c; }
-    .hashtag-chip.electronics { background: #dbeafe; color: #2563eb; }
-    .hashtag-chip.home { background: #dcfce7; color: #16a34a; }
-
-    .feed-results {
-        white-space: pre-wrap;
-        font-family: 'Inter', sans-serif;
-        line-height: 1.8;
+    .feed-card .card-stats span {
+        background: #f8fafc;
+        padding: 2px 8px;
+        border-radius: 6px;
     }
-    .feed-results h4 {
-        color: #4f46e5;
-        margin-top: 24px;
+    .feed-card .card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    .feed-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .feed-type-badge.event-pick { background: #dcfce7; color: #15803d; }
+    .feed-type-badge.top-performer { background: #dbeafe; color: #1d4ed8; }
+    .feed-type-badge.trending-up { background: #ffedd5; color: #c2410c; }
+    .feed-type-badge.proven-seller { background: #f3e8ff; color: #7c3aed; }
+
+    .delta-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    .delta-badge.positive { background: #dcfce7; color: #15803d; }
+    .delta-badge.new-entry { background: #fef3c7; color: #b45309; }
+
+    .copy-btn {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.72rem;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .copy-btn:hover { background: #e2e8f0; }
+    .copy-btn.copied { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 12px;
+    }
+
+    .info-card {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .info-card.muted {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+    .info-card i { font-size: 1.5rem; }
+
+    .year-section {
+        margin-bottom: 20px;
+    }
+    .year-section h6 {
+        color: #7c3aed;
+        font-weight: 700;
         margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    .feed-results h4:first-child {
-        margin-top: 0;
-    }
-    .feed-results ul {
-        margin-bottom: 16px;
-    }
-    .feed-results li {
-        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #f3e8ff;
     }
 
-    #generateBtn:disabled {
-        opacity: 0.7;
+    /* Sort bar */
+    .sort-bar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .sort-bar .sort-label {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        margin-right: 4px;
+        white-space: nowrap;
+    }
+    .sort-btn {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 0.73rem;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .sort-btn:hover { background: #e2e8f0; }
+    .sort-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+
+    .feed-card { cursor: pointer; }
+    .feed-card .card-actions { position: relative; z-index: 2; }
+
+    /* Detail Modal */
+    .detail-hero {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+    .detail-hero img {
+        width: 140px;
+        height: 140px;
+        border-radius: 14px;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+        flex-shrink: 0;
+    }
+    .detail-hero .detail-info { flex: 1; }
+    .detail-hero .detail-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+        word-break: break-word;
+    }
+    .detail-hero .detail-vendor {
+        font-size: 0.95rem;
+        color: #64748b;
+        margin-bottom: 12px;
+    }
+    .detail-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+    .detail-stat {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 12px 16px;
+        text-align: center;
+    }
+    .detail-stat .stat-val {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .detail-stat .stat-lbl {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .detail-ids {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-top: 16px;
+    }
+    .detail-ids .id-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+    }
+    .detail-ids .id-row + .id-row { border-top: 1px solid #e2e8f0; }
+    .detail-ids .id-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 600;
+    }
+    .detail-ids .id-value {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.85rem;
+        color: #334155;
+        user-select: all;
+    }
+    .detail-categories {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+    }
+    .detail-categories .cat-item {
+        background: #f1f5f9;
+        padding: 4px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #475569;
+    }
+    .detail-categories .cat-item .cat-level {
+        font-size: 0.65rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        margin-right: 4px;
     }
 
-    .date-btn {
-        transition: all 0.2s;
-    }
-    .date-btn.active {
-        background: var(--primary-color, #4f46e5);
-        border-color: var(--primary-color, #4f46e5);
-        color: #fff;
-    }
-    .date-btn:hover:not(.active) {
-        background: #e2e8f0;
-    }
+    .feed-results { white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.8; }
+    .feed-results h4 { color: #4f46e5; margin-top: 24px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+    .feed-results h4:first-child { margin-top: 0; }
+    .feed-results ul { margin-bottom: 16px; }
+    .feed-results li { margin-bottom: 8px; }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Egypt Events Calendar (subset for current/upcoming)
-    const egyptEvents = [
-        { name: "Ramadan", date: "2025-02-28", endDate: "2025-03-29", type: "religious", categories: ["fashion", "food", "home"] },
-        { name: "Eid al-Fitr", date: "2025-03-30", endDate: "2025-04-02", type: "religious", categories: ["fashion", "beauty", "food"] },
-        { name: "Mother's Day", date: "2025-03-21", type: "national", categories: ["beauty", "fashion", "jewelry"] },
-        { name: "Sham El-Nessim", date: "2025-04-21", type: "national", categories: ["food", "outdoor"] },
-        { name: "Eid al-Adha", date: "2025-06-06", endDate: "2025-06-09", type: "religious", categories: ["fashion", "food", "home"] },
-        { name: "Back to School", date: "2025-09-01", endDate: "2025-09-30", type: "seasonal", categories: ["fashion", "electronics", "stationery"] },
-        { name: "Singles Day (11.11)", date: "2025-11-11", type: "shopping", categories: ["all"] },
-        { name: "Black Friday", date: "2025-11-28", endDate: "2025-11-30", type: "shopping", categories: ["all"] },
-        { name: "Winter Season", date: "2025-12-01", endDate: "2026-02-28", type: "seasonal", categories: ["fashion", "home"] },
-        { name: "Valentine's Day", date: "2026-02-14", type: "national", categories: ["beauty", "fashion", "jewelry", "flowers"] },
-        { name: "Ramadan 2026", date: "2026-02-17", endDate: "2026-03-18", type: "religious", categories: ["fashion", "food", "home"] }
-    ];
-
-    let loadedData = {
-        vendors: [],
-        items: [],
-        hashtags: [],
-        categories: []
+    let nearestEvent = null;
+    let loadedData = { vendors: [], items: [], hashtags: [], categories: [], seasonality: [] };
+    // Store all rendered items/vendors for detail modal lookup
+    const itemStore = {};
+    const vendorStore = {};
+    // Store raw data per section for sorting
+    const sectionData = {
+        eventPicks: [],
+        topItems: [],
+        topVendors: [],
+        trendingUp: [],
+    };
+    // Current sort state per section
+    const sectionSort = {
+        eventPicks: 'qty',
+        topItems: 'qty',
+        topVendors: 'orders',
+        trendingUp: 'growth',
     };
 
-    // Current date range state
-    let currentStartDate = null;
-    let currentEndDate = null;
-    let currentDays = 7;
+    document.addEventListener('DOMContentLoaded', loadDashboard);
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize dates
-        initializeDates(7);
+    function getDateRange(daysBack) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - daysBack);
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    }
 
-        // Setup date button listeners
-        document.querySelectorAll('.date-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const days = parseInt(this.dataset.days);
-                document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                initializeDates(days);
-                loadAllData();
-            });
+    // =========================================================================
+    // Sort helpers
+    // =========================================================================
+    function renderSortBar(barId, section, options) {
+        const bar = document.getElementById(barId);
+        if (!bar) return;
+        bar.style.display = 'flex';
+        if (barId === 'topPerformersSortBar') bar.style.setProperty('display', 'flex', 'important');
+        bar.innerHTML = `<span class="sort-label"><i class="bi bi-sort-down me-1"></i>Sort:</span>` +
+            options.map(opt =>
+                `<button class="sort-btn ${sectionSort[section] === opt.key ? 'active' : ''}" onclick="applySort('${section}', '${opt.key}')">${opt.label}</button>`
+            ).join('');
+    }
+
+    function getSortedItems(items, sortKey) {
+        const arr = [...items];
+        switch (sortKey) {
+            case 'orders': return arr.sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0));
+            case 'qty': return arr.sort((a, b) => (b.total_qty || 0) - (a.total_qty || 0));
+            case 'category':
+                return arr.sort((a, b) => {
+                    const catA = (a.item_shoppingCategory || a.vendor_shoppingCategory || '').toLowerCase();
+                    const catB = (b.item_shoppingCategory || b.vendor_shoppingCategory || '').toLowerCase();
+                    return catA.localeCompare(catB) || (b.total_qty || 0) - (a.total_qty || 0);
+                });
+            case 'growth': return arr.sort((a, b) => (b.delta_pct || 0) - (a.delta_pct || 0));
+            case 'price': return arr.sort((a, b) => (b.price || 0) - (a.price || 0));
+            default: return arr;
+        }
+    }
+
+    function getSortedVendors(vendors, sortKey) {
+        const arr = [...vendors];
+        switch (sortKey) {
+            case 'orders': return arr.sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0));
+            case 'qty': return arr.sort((a, b) => (b.total_qty || 0) - (a.total_qty || 0));
+            case 'category':
+                return arr.sort((a, b) => {
+                    const catA = (a.vendor_shoppingCategory || '').toLowerCase();
+                    const catB = (b.vendor_shoppingCategory || '').toLowerCase();
+                    return catA.localeCompare(catB) || (b.orders_count || 0) - (a.orders_count || 0);
+                });
+            default: return arr;
+        }
+    }
+
+    function applySort(section, sortKey) {
+        sectionSort[section] = sortKey;
+        switch (section) {
+            case 'eventPicks':
+                renderSortBar('eventPicksSortBar', 'eventPicks', itemSortOptions);
+                renderSectionItems('eventPicksContent', sectionData.eventPicks, 'event-pick', sortKey);
+                break;
+            case 'topItems':
+                renderSortBar('topPerformersSortBar', 'topItems', itemSortOptions);
+                renderSectionItems('topItemsContent', sectionData.topItems, 'top-performer', sortKey);
+                break;
+            case 'topVendors':
+                renderSortBar('topPerformersSortBar', 'topVendors', vendorSortOptions);
+                renderSectionVendors('topVendorsContent', sectionData.topVendors, 'top-performer', sortKey);
+                break;
+            case 'trendingUp':
+                renderSortBar('trendingUpSortBar', 'trendingUp', trendingSortOptions);
+                renderSectionItems('trendingUpContent', sectionData.trendingUp, 'trending-up', sortKey);
+                break;
+        }
+    }
+
+    function renderSectionItems(containerId, items, feedType, sortKey) {
+        const sorted = getSortedItems(items, sortKey);
+        document.getElementById(containerId).innerHTML =
+            `<div class="cards-grid">${sorted.map(item => renderItemCard(item, feedType)).join('')}</div>`;
+    }
+
+    function renderSectionVendors(containerId, vendors, feedType, sortKey) {
+        const sorted = getSortedVendors(vendors, sortKey);
+        document.getElementById(containerId).innerHTML =
+            `<div class="cards-grid">${sorted.map(v => renderVendorCard(v, feedType)).join('')}</div>`;
+    }
+
+    const itemSortOptions = [
+        { key: 'qty', label: 'Quantity' },
+        { key: 'orders', label: 'Orders' },
+        { key: 'category', label: 'Category' },
+        { key: 'price', label: 'Price' },
+    ];
+    const vendorSortOptions = [
+        { key: 'orders', label: 'Orders' },
+        { key: 'qty', label: 'Quantity' },
+        { key: 'category', label: 'Category' },
+    ];
+    const trendingSortOptions = [
+        { key: 'growth', label: 'Growth %' },
+        { key: 'qty', label: 'Quantity' },
+        { key: 'orders', label: 'Orders' },
+        { key: 'category', label: 'Category' },
+    ];
+
+    // Update sort bar when switching Top Performers tabs
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-bs-target="#topItemsTab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', () => renderSortBar('topPerformersSortBar', 'topItems', itemSortOptions));
         });
-
-        loadAllData();
-        displayUpcomingEvents();
+        document.querySelectorAll('[data-bs-target="#topVendorsTab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', () => renderSortBar('topPerformersSortBar', 'topVendors', vendorSortOptions));
+        });
     });
 
-    function initializeDates(days) {
-        currentDays = days;
-        currentEndDate = new Date();
-        currentStartDate = new Date();
-        currentStartDate.setDate(currentStartDate.getDate() - days);
+    async function loadDashboard() {
+        // Step 1: fetch nearest event first (other sections may depend on it)
+        try {
+            const res = await fetch('/api/feed/nearest-event');
+            const data = await res.json();
+            if (data.success && data.event) {
+                nearestEvent = data.event;
+            }
+        } catch (e) {
+            console.error('Error fetching nearest event:', e);
+        }
 
-        // Update date inputs
-        document.getElementById('startDate').value = currentStartDate.toISOString().split('T')[0];
-        document.getElementById('endDate').value = currentEndDate.toISOString().split('T')[0];
-
-        // Update labels
-        updateDateLabels();
+        // Step 2: fire all section loaders in parallel
+        loadEventPicks();
+        loadTopPerformers();
+        loadTrendingUp();
+        loadHistoricalPicks();
     }
 
-    function applyCustomDates() {
-        const startInput = document.getElementById('startDate').value;
-        const endInput = document.getElementById('endDate').value;
+    // =========================================================================
+    // Section 1: Event Picks
+    // =========================================================================
+    async function loadEventPicks() {
+        const loading = document.getElementById('eventPicksLoading');
+        const content = document.getElementById('eventPicksContent');
+        const badge = document.getElementById('eventBadge');
 
-        if (!startInput || !endInput) {
-            alert('Please select both start and end dates');
+        if (!nearestEvent) {
+            loading.style.display = 'none';
+            content.innerHTML = `
+                <div class="info-card muted">
+                    <i class="bi bi-calendar-x"></i>
+                    <div>
+                        <strong>No upcoming seasonal events</strong>
+                        <div class="small">No events found within the next 60 days.</div>
+                    </div>
+                </div>`;
             return;
         }
 
-        currentStartDate = new Date(startInput);
-        currentEndDate = new Date(endInput);
+        // Show event badge
+        const statusText = nearestEvent.is_active
+            ? `${nearestEvent.name} is active now`
+            : `${nearestEvent.name} in ${nearestEvent.days_until} days`;
+        badge.textContent = statusText;
+        badge.style.display = 'inline-block';
+        badge.className = nearestEvent.is_active ? 'badge bg-success' : 'badge bg-warning text-dark';
 
-        // Calculate days difference
-        const diffTime = Math.abs(currentEndDate - currentStartDate);
-        currentDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Fetch event items (last 30 days of sales in event categories)
+        try {
+            const range = getDateRange(30);
+            const res = await fetch(`/api/seasonality/event/items?start_date=${range.start}&end_date=${range.end}&event_key=${nearestEvent.event_key}`);
+            const data = await res.json();
+            loading.style.display = 'none';
 
-        // Remove active from quick buttons
-        document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-
-        updateDateLabels();
-        loadAllData();
-    }
-
-    function updateDateLabels() {
-        const startStr = currentStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const endStr = currentEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const label = `(${startStr} - ${endStr})`;
-
-        // Update all date range labels
-        document.querySelectorAll('.date-range-label').forEach(el => {
-            el.textContent = label;
-        });
-
-        // Update generate section text
-        const generateLabel = document.getElementById('generateDateRange');
-        if (generateLabel) {
-            generateLabel.textContent = `${startStr} - ${endStr}`;
+            if (data.success && data.data.length > 0) {
+                sectionData.eventPicks = data.data.slice(0, 12);
+                document.getElementById('eventPicksInfo').innerHTML = `
+                    <div class="info-card mb-3">
+                        <i class="bi bi-calendar-event"></i>
+                        <div>
+                            <strong>${statusText}</strong>
+                            <div class="small">${data.count} items found in event categories — showing top sellers</div>
+                        </div>
+                    </div>`;
+                renderSortBar('eventPicksSortBar', 'eventPicks', itemSortOptions);
+                renderSectionItems('eventPicksContent', sectionData.eventPicks, 'event-pick', sectionSort.eventPicks);
+            } else {
+                document.getElementById('eventPicksInfo').innerHTML = `
+                    <div class="info-card mb-3">
+                        <i class="bi bi-calendar-event"></i>
+                        <div>
+                            <strong>${statusText}</strong>
+                            <div class="small">No recent sales data found for event categories. Check historical data below.</div>
+                        </div>
+                    </div>`;
+            }
+        } catch (e) {
+            loading.style.display = 'none';
+            content.innerHTML = `<div class="alert alert-danger">Error loading event picks: ${e.message}</div>`;
         }
     }
 
-    function loadAllData() {
-        const startStr = currentStartDate.toISOString().split('T')[0];
-        const endStr = currentEndDate.toISOString().split('T')[0];
-
-        // Load vendors
-        document.getElementById('vendorsLoading').style.display = 'block';
-        fetch(`/api/top-vendors?start_date=${startStr}&end_date=${endStr}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('vendorsLoading').style.display = 'none';
-                if (data.success) {
-                    loadedData.vendors = data.data.slice(0, 10);
-                    displayVendorsPreview(loadedData.vendors);
-                    document.getElementById('statVendors').textContent = data.data.length;
-                }
-            })
-            .catch(err => {
-                document.getElementById('vendorsLoading').style.display = 'none';
-                console.error('Error loading vendors:', err);
-            });
+    // =========================================================================
+    // Section 2: Top Performers
+    // =========================================================================
+    async function loadTopPerformers() {
+        const range = getDateRange(7);
 
         // Load items
-        document.getElementById('itemsLoading').style.display = 'block';
-        fetch(`/api/top-items?start_date=${startStr}&end_date=${endStr}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('itemsLoading').style.display = 'none';
-                if (data.success) {
-                    loadedData.items = data.data.slice(0, 10);
-                    displayItemsPreview(loadedData.items);
-                    document.getElementById('statItems').textContent = data.data.length;
+        try {
+            const res = await fetch(`/api/top-items?start_date=${range.start}&end_date=${range.end}`);
+            const data = await res.json();
+            document.getElementById('topItemsLoading').style.display = 'none';
+
+            if (data.success && data.data.length > 0) {
+                loadedData.items = data.data.slice(0, 10);
+                sectionData.topItems = data.data.slice(0, 12);
+                renderSortBar('topPerformersSortBar', 'topItems', itemSortOptions);
+                renderSectionItems('topItemsContent', sectionData.topItems, 'top-performer', sectionSort.topItems);
+            } else {
+                document.getElementById('topItemsContent').innerHTML = '<div class="empty-state"><i class="bi bi-box-seam"></i><p>No items found</p></div>';
+            }
+        } catch (e) {
+            document.getElementById('topItemsLoading').style.display = 'none';
+            document.getElementById('topItemsContent').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        }
+
+        // Load vendors
+        try {
+            const res = await fetch(`/api/top-vendors?start_date=${range.start}&end_date=${range.end}`);
+            const data = await res.json();
+            document.getElementById('topVendorsLoading').style.display = 'none';
+
+            if (data.success && data.data.length > 0) {
+                loadedData.vendors = data.data.slice(0, 10);
+                sectionData.topVendors = data.data.slice(0, 12);
+                renderSectionVendors('topVendorsContent', sectionData.topVendors, 'top-performer', sectionSort.topVendors);
+            } else {
+                document.getElementById('topVendorsContent').innerHTML = '<div class="empty-state"><i class="bi bi-shop"></i><p>No vendors found</p></div>';
+            }
+        } catch (e) {
+            document.getElementById('topVendorsLoading').style.display = 'none';
+            document.getElementById('topVendorsContent').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        }
+    }
+
+    // =========================================================================
+    // Section 3: Trending Up
+    // =========================================================================
+    async function loadTrendingUp() {
+        const loading = document.getElementById('trendingUpLoading');
+        const content = document.getElementById('trendingUpContent');
+
+        try {
+            const res = await fetch('/api/feed/trending-up?days=7&limit=20');
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (data.success && data.data.length > 0) {
+                sectionData.trendingUp = data.data;
+                renderSortBar('trendingUpSortBar', 'trendingUp', trendingSortOptions);
+                renderSectionItems('trendingUpContent', sectionData.trendingUp, 'trending-up', sectionSort.trendingUp);
+            } else {
+                content.innerHTML = `
+                    <div class="info-card muted">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <div>
+                            <strong>No trending items detected</strong>
+                            <div class="small">No items showed significant growth between the two periods.</div>
+                        </div>
+                    </div>`;
+            }
+        } catch (e) {
+            loading.style.display = 'none';
+            content.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        }
+    }
+
+    // =========================================================================
+    // Section 4: Previously Worked (Historical)
+    // =========================================================================
+    async function loadHistoricalPicks() {
+        if (!nearestEvent) return;
+
+        const card = document.getElementById('historicalCard');
+        const loading = document.getElementById('historicalLoading');
+        const content = document.getElementById('historicalContent');
+        const label = document.getElementById('historicalLabel');
+
+        card.style.display = 'block';
+        label.textContent = `(${nearestEvent.name} — past years)`;
+
+        try {
+            const res = await fetch(`/api/seasonality/event/historical-items?event_key=${nearestEvent.event_key}`);
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (data.success && Object.keys(data.years).length > 0) {
+                let html = '';
+                // Sort years descending
+                const years = Object.keys(data.years).sort((a, b) => b - a);
+                for (const year of years) {
+                    const yearData = data.years[year];
+                    if (yearData.items.length === 0) continue;
+                    html += `
+                        <div class="year-section">
+                            <h6><i class="bi bi-calendar3 me-2"></i>${year} — ${nearestEvent.name} (${yearData.event_start})</h6>
+                            <div class="cards-grid">${yearData.items.map(item => renderItemCard(item, 'proven-seller')).join('')}</div>
+                        </div>`;
                 }
-            })
-            .catch(err => {
-                document.getElementById('itemsLoading').style.display = 'none';
-                console.error('Error loading items:', err);
-            });
-
-        // Load TikTok trends
-        document.getElementById('trendsLoading').style.display = 'block';
-        fetch('/api/trends/hashtags')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('trendsLoading').style.display = 'none';
-                if (data.success) {
-                    loadedData.hashtags = data.data.hashtags || [];
-                    loadedData.categories = data.data.trending_categories || [];
-                    displayTrendsPreview(loadedData.hashtags, loadedData.categories);
-                    document.getElementById('statHashtags').textContent = loadedData.hashtags.length;
-                }
-            })
-            .catch(err => {
-                document.getElementById('trendsLoading').style.display = 'none';
-                console.error('Error loading trends:', err);
-            });
+                content.innerHTML = html || '<div class="text-muted">No historical data found for past years.</div>';
+            } else {
+                content.innerHTML = '<div class="text-muted">No historical data available for this event.</div>';
+            }
+        } catch (e) {
+            loading.style.display = 'none';
+            content.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+        }
     }
 
-    function displayVendorsPreview(vendors) {
-        const container = document.getElementById('vendorsPreview');
-        if (!vendors || vendors.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="bi bi-shop"></i><p>No vendors found</p></div>';
-            return;
+    // =========================================================================
+    // Card Renderers
+    // =========================================================================
+    function renderItemCard(item, feedType) {
+        // Store item data for detail modal
+        const storeKey = `${item.item_id}_${feedType}_${Math.random().toString(36).substr(2, 5)}`;
+        item._feedType = feedType;
+        itemStore[storeKey] = item;
+
+        const name = (item.item_name || 'Unknown Item').substring(0, 50);
+        const img = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http'))
+            ? item.item_image : '/static/botit-logo.png';
+        const vendorName = item.vendor_name || 'Unknown Vendor';
+        const category = item.item_shoppingCategory || item.vendor_shoppingCategory || '';
+        const catClass = getCategoryClass(category);
+        const feedLabel = {
+            'event-pick': 'Event Pick',
+            'top-performer': 'Top Performer',
+            'trending-up': 'Trending Up',
+            'proven-seller': 'Proven Seller'
+        }[feedType] || feedType;
+
+        let deltaHtml = '';
+        if (feedType === 'trending-up') {
+            if (item.is_new) {
+                deltaHtml = `<span class="delta-badge new-entry">NEW</span>`;
+            } else if (item.delta_pct !== undefined) {
+                deltaHtml = `<span class="delta-badge positive">+${item.delta_pct}%</span>`;
+            }
         }
 
-        let html = '<ul class="preview-list">';
-        vendors.slice(0, 5).forEach((vendor, i) => {
-            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-            html += `
-                <li>
-                    <span class="rank ${rankClass}">${i + 1}</span>
-                    <img src="${(vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http')) ? vendor.vendor_image : '/static/placeholder.png'}" alt="${vendor.vendor_name}" onerror="this.src='/static/botit-logo.png'">
-                    <div>
-                        <div class="name">${vendor.vendor_name || 'Unknown Vendor'}</div>
-                        <div class="meta">${formatNumber(vendor.orders_count)} orders · <span class="badge-category ${getCategoryClass(vendor.vendor_shoppingCategory)}">${vendor.vendor_shoppingCategory || 'N/A'}</span></div>
+        return `
+            <div class="feed-card" onclick="showItemDetail('${storeKey}')">
+                <img src="${img}" alt="${name}" onerror="this.src='/static/botit-logo.png'">
+                <div class="card-info">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="feed-type-badge ${feedType}">${feedLabel}</span>
+                        ${deltaHtml}
+                        ${category ? `<span class="badge-category ${catClass}">${category}</span>` : ''}
                     </div>
-                </li>
-            `;
-        });
-        html += '</ul>';
-        container.innerHTML = html;
-    }
-
-    function displayItemsPreview(items) {
-        const container = document.getElementById('itemsPreview');
-        if (!items || items.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="bi bi-box-seam"></i><p>No items found</p></div>';
-            return;
-        }
-
-        let html = '<ul class="preview-list">';
-        items.slice(0, 5).forEach((item, i) => {
-            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-            html += `
-                <li>
-                    <span class="rank ${rankClass}">${i + 1}</span>
-                    <img src="${(item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http')) ? item.item_image : '/static/placeholder.png'}" alt="${item.item_name}" onerror="this.src='/static/botit-logo.png'">
-                    <div>
-                        <div class="name">${(item.item_name || 'Unknown Item').substring(0, 40)}${item.item_name?.length > 40 ? '...' : ''}</div>
-                        <div class="meta">${formatNumber(item.total_qty)} sold · ${formatCurrency(item.price)}</div>
+                    <div class="card-name" title="${item.item_name || ''}">${name}</div>
+                    <div class="card-vendor">${vendorName}</div>
+                    <div class="card-stats">
+                        <span><i class="bi bi-bag"></i> ${formatNumber(item.total_qty)} sold</span>
+                        <span><i class="bi bi-receipt"></i> ${formatNumber(item.orders_count)} orders</span>
+                        ${item.price ? `<span><i class="bi bi-tag"></i> ${formatCurrency(item.price)}</span>` : ''}
+                        ${item.prev_qty !== undefined ? `<span><i class="bi bi-arrow-up"></i> was ${formatNumber(item.prev_qty)}</span>` : ''}
                     </div>
-                </li>
-            `;
-        });
-        html += '</ul>';
-        container.innerHTML = html;
-    }
-
-    function displayUpcomingEvents() {
-        const container = document.getElementById('eventsPreview');
-        const today = new Date();
-        const upcoming = egyptEvents
-            .filter(e => new Date(e.endDate || e.date) >= today)
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
-            .slice(0, 5);
-
-        document.getElementById('statEvents').textContent = upcoming.length;
-
-        if (upcoming.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="bi bi-calendar-x"></i><p>No upcoming events</p></div>';
-            return;
-        }
-
-        let html = '<div class="d-flex flex-wrap">';
-        upcoming.forEach(event => {
-            const icon = event.type === 'religious' ? 'moon-stars' :
-                        event.type === 'shopping' ? 'cart' :
-                        event.type === 'seasonal' ? 'sun' : 'flag';
-            const daysUntil = Math.ceil((new Date(event.date) - today) / (1000 * 60 * 60 * 24));
-            const timeText = daysUntil <= 0 ? 'Now' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days`;
-
-            html += `
-                <div class="event-chip ${event.type}">
-                    <i class="bi bi-${icon}"></i>
-                    ${event.name}
-                    <span class="ms-2 opacity-75">(${timeText})</span>
                 </div>
-            `;
+                <div class="card-actions">
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyId('${item.item_id}', this)" title="Copy Item ID">
+                        <i class="bi bi-clipboard"></i> Item ID
+                    </button>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyId('${item.vendor_id}', this)" title="Copy Vendor ID">
+                        <i class="bi bi-clipboard"></i> Vendor ID
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    function renderVendorCard(vendor, feedType) {
+        const storeKey = `${vendor.vendor_id}_${Math.random().toString(36).substr(2, 5)}`;
+        vendor._feedType = feedType;
+        vendorStore[storeKey] = vendor;
+
+        const name = vendor.vendor_name || 'Unknown Vendor';
+        const img = (vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http'))
+            ? vendor.vendor_image : '/static/botit-logo.png';
+        const category = vendor.vendor_shoppingCategory || '';
+        const catClass = getCategoryClass(category);
+
+        return `
+            <div class="feed-card" onclick="showVendorDetail('${storeKey}')">
+                <img src="${img}" alt="${name}" onerror="this.src='/static/botit-logo.png'">
+                <div class="card-info">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="feed-type-badge top-performer">Top Performer</span>
+                        ${category ? `<span class="badge-category ${catClass}">${category}</span>` : ''}
+                    </div>
+                    <div class="card-name">${name}</div>
+                    <div class="card-stats">
+                        <span><i class="bi bi-receipt"></i> ${formatNumber(vendor.orders_count)} orders</span>
+                        <span><i class="bi bi-bag"></i> ${formatNumber(vendor.total_qty)} qty</span>
+                        <span><i class="bi bi-people"></i> ${formatNumber(vendor.users_count)} users</span>
+                        <span><i class="bi bi-box-seam"></i> ${formatNumber(vendor.items_count)} items</span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyId('${vendor.vendor_id}', this)" title="Copy Vendor ID">
+                        <i class="bi bi-clipboard"></i> Vendor ID
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    // =========================================================================
+    // Detail Modal
+    // =========================================================================
+    function showItemDetail(storeKey) {
+        const item = itemStore[storeKey];
+        if (!item) return;
+
+        const feedType = item._feedType || 'top-performer';
+        const feedLabel = {
+            'event-pick': 'Event Pick',
+            'top-performer': 'Top Performer',
+            'trending-up': 'Trending Up',
+            'proven-seller': 'Proven Seller'
+        }[feedType] || feedType;
+
+        const img = (item.item_image && item.item_image !== 'NA' && item.item_image.startsWith('http'))
+            ? item.item_image : '/static/botit-logo.png';
+        const category = item.item_shoppingCategory || item.vendor_shoppingCategory || '';
+        const catClass = getCategoryClass(category);
+
+        let deltaHtml = '';
+        if (feedType === 'trending-up') {
+            if (item.is_new) {
+                deltaHtml = `<span class="delta-badge new-entry" style="font-size:0.85rem;">NEW ENTRANT</span>`;
+            } else if (item.delta_pct !== undefined) {
+                deltaHtml = `<span class="delta-badge positive" style="font-size:0.85rem;">+${item.delta_pct}% growth</span>`;
+            }
+        }
+
+        // Badges
+        document.getElementById('detailBadges').innerHTML = `
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="feed-type-badge ${feedType}" style="font-size:0.8rem; padding:4px 12px;">${feedLabel}</span>
+                ${deltaHtml}
+                ${category ? `<span class="badge-category ${catClass}">${category}</span>` : ''}
+            </div>`;
+
+        // Build category chain
+        const catChain = [];
+        if (item.item_shoppingCategory) catChain.push({level: 'Category', val: item.item_shoppingCategory});
+        if (item.item_shoppingSubcategory) catChain.push({level: 'Subcategory', val: item.item_shoppingSubcategory});
+        if (item.item_itemCategory) catChain.push({level: 'Item Cat', val: item.item_itemCategory});
+        if (item.item_itemSubcategory) catChain.push({level: 'Item Sub', val: item.item_itemSubcategory});
+
+        // Stats
+        let stats = [
+            { val: formatNumber(item.total_qty), lbl: 'Qty Sold' },
+            { val: formatNumber(item.orders_count), lbl: 'Orders' },
+        ];
+        if (item.users_count) stats.push({ val: formatNumber(item.users_count), lbl: 'Users' });
+        if (item.price) stats.push({ val: formatCurrency(item.price), lbl: 'Price' });
+        if (item.prev_qty !== undefined) stats.push({ val: formatNumber(item.prev_qty), lbl: 'Prev Period Qty' });
+        if (item.delta_qty !== undefined) stats.push({ val: (item.delta_qty > 0 ? '+' : '') + formatNumber(item.delta_qty), lbl: 'Qty Change' });
+
+        // Body
+        document.getElementById('detailBody').innerHTML = `
+            <div class="detail-hero">
+                <img src="${img}" alt="" onerror="this.src='/static/botit-logo.png'">
+                <div class="detail-info">
+                    <div class="detail-name">${item.item_name || 'Unknown Item'}</div>
+                    <div class="detail-vendor"><i class="bi bi-shop me-1"></i>${item.vendor_name || 'Unknown Vendor'}</div>
+                    ${catChain.length ? `
+                        <div class="detail-categories">
+                            ${catChain.map(c => `<span class="cat-item"><span class="cat-level">${c.level}:</span> ${c.val}</span>`).join('')}
+                        </div>` : ''}
+                </div>
+            </div>
+            <div class="detail-stats-grid">
+                ${stats.map(s => `<div class="detail-stat"><div class="stat-val">${s.val}</div><div class="stat-lbl">${s.lbl}</div></div>`).join('')}
+            </div>
+            <div class="detail-ids">
+                <div class="id-row">
+                    <span class="id-label">Item ID</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="id-value">${item.item_id || 'N/A'}</span>
+                        <button class="copy-btn" onclick="copyId('${item.item_id}', this)"><i class="bi bi-clipboard"></i> Copy</button>
+                    </div>
+                </div>
+                <div class="id-row">
+                    <span class="id-label">Vendor ID</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="id-value">${item.vendor_id || 'N/A'}</span>
+                        <button class="copy-btn" onclick="copyId('${item.vendor_id}', this)"><i class="bi bi-clipboard"></i> Copy</button>
+                    </div>
+                </div>
+            </div>
+            ${item.start_date && item.end_date ? `<div class="text-muted small mt-3"><i class="bi bi-calendar3 me-1"></i>Data period: ${item.start_date} to ${item.end_date}</div>` : ''}`;
+
+        // Footer
+        document.getElementById('detailFooter').innerHTML = `
+            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary btn-sm" onclick="copyId('${item.item_id}', this)"><i class="bi bi-clipboard me-1"></i>Copy Item ID</button>`;
+
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+
+    function showVendorDetail(storeKey) {
+        const vendor = vendorStore[storeKey];
+        if (!vendor) return;
+
+        const img = (vendor.vendor_image && vendor.vendor_image !== 'NA' && vendor.vendor_image.startsWith('http'))
+            ? vendor.vendor_image : '/static/botit-logo.png';
+        const category = vendor.vendor_shoppingCategory || '';
+        const catClass = getCategoryClass(category);
+
+        document.getElementById('detailBadges').innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <span class="feed-type-badge top-performer" style="font-size:0.8rem; padding:4px 12px;">Top Performer</span>
+                ${category ? `<span class="badge-category ${catClass}">${category}</span>` : ''}
+            </div>`;
+
+        let stats = [
+            { val: formatNumber(vendor.orders_count), lbl: 'Orders' },
+            { val: formatNumber(vendor.total_qty), lbl: 'Total Qty' },
+            { val: formatNumber(vendor.users_count), lbl: 'Unique Users' },
+            { val: formatNumber(vendor.items_count), lbl: 'Unique Items' },
+        ];
+
+        document.getElementById('detailBody').innerHTML = `
+            <div class="detail-hero">
+                <img src="${img}" alt="" onerror="this.src='/static/botit-logo.png'">
+                <div class="detail-info">
+                    <div class="detail-name">${vendor.vendor_name || 'Unknown Vendor'}</div>
+                    <div class="detail-vendor"><i class="bi bi-tag me-1"></i>${category || 'No category'}</div>
+                </div>
+            </div>
+            <div class="detail-stats-grid">
+                ${stats.map(s => `<div class="detail-stat"><div class="stat-val">${s.val}</div><div class="stat-lbl">${s.lbl}</div></div>`).join('')}
+            </div>
+            <div class="detail-ids">
+                <div class="id-row">
+                    <span class="id-label">Vendor ID</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="id-value">${vendor.vendor_id || 'N/A'}</span>
+                        <button class="copy-btn" onclick="copyId('${vendor.vendor_id}', this)"><i class="bi bi-clipboard"></i> Copy</button>
+                    </div>
+                </div>
+            </div>
+            ${vendor.start_date && vendor.end_date ? `<div class="text-muted small mt-3"><i class="bi bi-calendar3 me-1"></i>Data period: ${vendor.start_date} to ${vendor.end_date}</div>` : ''}`;
+
+        document.getElementById('detailFooter').innerHTML = `
+            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            <button class="btn btn-primary btn-sm" onclick="copyId('${vendor.vendor_id}', this)"><i class="bi bi-clipboard me-1"></i>Copy Vendor ID</button>`;
+
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
+    function copyId(id, btnEl) {
+        if (!id || id === 'undefined' || id === 'null') return;
+        navigator.clipboard.writeText(id).then(() => {
+            const originalHtml = btnEl.innerHTML;
+            btnEl.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+            btnEl.classList.add('copied');
+            setTimeout(() => {
+                btnEl.innerHTML = originalHtml;
+                btnEl.classList.remove('copied');
+            }, 1500);
         });
-        html += '</div>';
-        container.innerHTML = html;
     }
 
-    function displayTrendsPreview(hashtags, categories) {
-        const container = document.getElementById('trendsPreview');
-
-        if ((!hashtags || hashtags.length === 0) && (!categories || categories.length === 0)) {
-            container.innerHTML = '<div class="empty-state"><i class="bi bi-tiktok"></i><p>No trends loaded</p></div>';
-            return;
-        }
-
-        let html = '<div>';
-
-        // Show top categories
-        if (categories && categories.length > 0) {
-            html += '<div class="mb-3"><strong class="text-muted small">Trending Categories:</strong></div>';
-            html += '<div class="mb-3">';
-            categories.slice(0, 5).forEach(cat => {
-                const catClass = cat.category?.toLowerCase() || '';
-                html += `<span class="hashtag-chip ${catClass}">${cat.category} (${cat.score})</span>`;
-            });
-            html += '</div>';
-        }
-
-        // Show top hashtags
-        if (hashtags && hashtags.length > 0) {
-            html += '<div class="mb-2"><strong class="text-muted small">Top Hashtags:</strong></div>';
-            html += '<div>';
-            hashtags.slice(0, 8).forEach(tag => {
-                const catClass = tag.mapped_category?.toLowerCase() || '';
-                html += `<span class="hashtag-chip ${catClass}">#${tag.hashtag || tag.name}</span>`;
-            });
-            html += '</div>';
-        }
-
-        html += '</div>';
-        container.innerHTML = html;
-    }
-
-    function generateFeed() {
+    // =========================================================================
+    // AI Feed Generator (kept from original, moved to accordion)
+    // =========================================================================
+    async function generateFeed() {
         const btn = document.getElementById('generateBtn');
         const resultsCard = document.getElementById('feedResultsCard');
         const loadingEl = document.getElementById('generateLoading');
         const resultsEl = document.getElementById('feedResults');
 
-        // Get options
-        const includeVendors = document.getElementById('includeVendors').checked;
-        const includeItems = document.getElementById('includeItems').checked;
-        const includeEvents = document.getElementById('includeEvents').checked;
-        const includeTrends = document.getElementById('includeTrends').checked;
-
-        // Show results card and loading
         resultsCard.style.display = 'block';
         loadingEl.style.display = 'block';
         resultsEl.innerHTML = '';
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
 
-        // Prepare data payload
+        // Load extra data for GPT context if not already loaded
+        let hashtags = loadedData.hashtags;
+        let categories = loadedData.categories;
+        let seasonality = loadedData.seasonality;
+
+        if (!hashtags.length) {
+            try {
+                const res = await fetch('/api/trends/hashtags-cached');
+                const data = await res.json();
+                if (data.success) {
+                    hashtags = data.data.hashtags || [];
+                    categories = data.data.trending_categories || [];
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!seasonality.length) {
+            try {
+                const res = await fetch('/api/seasonality/top-items-cached');
+                const data = await res.json();
+                if (data.success) seasonality = data.data;
+            } catch (e) { /* ignore */ }
+        }
+
+        const range = getDateRange(7);
         const payload = {
-            include_vendors: includeVendors,
-            include_items: includeItems,
-            include_events: includeEvents,
-            include_trends: includeTrends,
-            vendors: includeVendors ? loadedData.vendors : [],
-            items: includeItems ? loadedData.items : [],
-            hashtags: includeTrends ? loadedData.hashtags : [],
-            trending_categories: includeTrends ? loadedData.categories : [],
-            date_range: {
-                start: currentStartDate.toISOString().split('T')[0],
-                end: currentEndDate.toISOString().split('T')[0],
-                days: currentDays
-            }
+            include_vendors: document.getElementById('includeVendors').checked,
+            include_items: document.getElementById('includeItems').checked,
+            include_events: document.getElementById('includeEvents').checked,
+            include_trends: document.getElementById('includeTrends').checked,
+            vendors: loadedData.vendors,
+            items: loadedData.items,
+            hashtags: hashtags,
+            trending_categories: categories,
+            seasonality: seasonality,
+            date_range: { start: range.start, end: range.end, days: 7 }
         };
 
-        fetch('/api/generate-feed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
+        try {
+            const res = await fetch('/api/generate-feed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
             loadingEl.style.display = 'none';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-2"></i>Generate Feed';
@@ -648,18 +1085,16 @@
             } else {
                 resultsEl.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
             }
-        })
-        .catch(err => {
+        } catch (e) {
             loadingEl.style.display = 'none';
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-magic me-2"></i>Generate Feed';
-            resultsEl.innerHTML = `<div class="alert alert-danger">Error generating feed: ${err.message}</div>`;
-        });
+            resultsEl.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+        }
     }
 
     function formatFeedResults(feed) {
-        // Convert markdown-style formatting to HTML
-        let html = feed
+        return feed
             .replace(/### (.*?)$/gm, '<h4>$1</h4>')
             .replace(/## (.*?)$/gm, '<h4>$1</h4>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -667,20 +1102,16 @@
             .replace(/^\d+\. (.*?)$/gm, '<li>$1</li>')
             .replace(/(<li>.*<\/li>)\n(?=<li>)/g, '$1')
             .replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>');
-
-        return html;
     }
 
     function copyFeed() {
-        const feedText = document.getElementById('feedResults').innerText;
-        navigator.clipboard.writeText(feedText).then(() => {
-            alert('Feed copied to clipboard!');
-        });
+        const text = document.getElementById('feedResults').innerText;
+        navigator.clipboard.writeText(text).then(() => alert('Feed copied to clipboard!'));
     }
 
     function downloadFeed() {
-        const feedText = document.getElementById('feedResults').innerText;
-        const blob = new Blob([feedText], { type: 'text/plain' });
+        const text = document.getElementById('feedResults').innerText;
+        const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

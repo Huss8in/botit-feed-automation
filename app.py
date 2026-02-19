@@ -22,6 +22,7 @@ local_mongo_uri = os.getenv("LOCAL_MONGO_URI", "mongodb://localhost:27017/")
 local_client = MongoClient(local_mongo_uri)
 local_db = local_client.get_database("botitprod")
 seasonality_results_collection = local_db["seasonality"]
+tiktok_hashtags_collection = local_db["tiktok-hashtags"]
 
 # OpenAI configuration
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -956,6 +957,83 @@ def api_seasonality_event_vendors():
         return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
 
 
+@app.route('/api/seasonality/event/historical-items', methods=['GET'])
+def api_seasonality_event_historical_items():
+    """
+    Get best-selling items for an event in previous years.
+    Uses per-year event dates from the mapping to query correct date ranges.
+
+    Query params:
+        - event_key: Event identifier (required)
+        - current_year: Current year to exclude (optional, default=current year)
+    """
+    try:
+        from seasonal_event_category_mapping import (
+            get_event_category_paths, get_event_name, get_event_dates
+        )
+
+        event_key = request.args.get('event_key', '')
+        current_year = int(request.args.get('current_year', datetime.now().year))
+
+        if not event_key:
+            return jsonify({'success': False, 'error': 'event_key is required'}), 400
+
+        event_name = get_event_name(event_key)
+        category_paths = get_event_category_paths(event_key)
+        dates = get_event_dates(event_key)
+
+        if not dates:
+            return jsonify({
+                'success': True,
+                'event_key': event_key,
+                'event_name': event_name,
+                'years': {},
+                'message': 'No date mapping available for this event'
+            })
+
+        years_data = {}
+        for year, date_info in sorted(dates.items()):
+            if year >= current_year:
+                continue
+
+            event_start = datetime.strptime(date_info["start"], '%Y-%m-%d')
+            duration = date_info.get("duration_days", 1)
+
+            range_start = event_start - timedelta(days=30)
+            range_end = event_start + timedelta(days=duration + 7)
+
+            pipeline = get_seasonality_items_by_event_pipeline(
+                range_start, range_end, category_paths
+            )
+            # Override limit to 10
+            for stage in pipeline:
+                if "$limit" in stage:
+                    stage["$limit"] = 10
+                    break
+
+            results = list(orders_collection.aggregate(pipeline))
+            results = serialize_doc(results)
+
+            years_data[str(year)] = {
+                'date_range': {
+                    'start': range_start.strftime('%Y-%m-%d'),
+                    'end': range_end.strftime('%Y-%m-%d')
+                },
+                'event_start': date_info["start"],
+                'items': results
+            }
+
+        return jsonify({
+            'success': True,
+            'event_key': event_key,
+            'event_name': event_name,
+            'years': years_data
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
+
+
 @app.route('/api/seasonality/events', methods=['GET'])
 def api_seasonality_events():
     """
@@ -1392,6 +1470,121 @@ def api_trends_hashtags():
         return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
 
 
+@app.route('/api/trends/refresh', methods=['POST'])
+def api_trends_refresh():
+    """
+    Fetch fresh TikTok trending data, save to local MongoDB, and return it.
+    This is the only endpoint that calls the live TikTok API.
+    """
+    try:
+        from test_tiktok_trends import (
+            get_trending_hashtags_from_api,
+            analyze_trending_hashtags,
+            get_trending_categories
+        )
+
+        # Get trending hashtags (will use mock data if API fails)
+        hashtags = get_trending_hashtags_from_api()
+
+        # Analyze and map to categories
+        analyzed = analyze_trending_hashtags(hashtags)
+
+        # Get aggregated trending categories
+        trending = get_trending_categories(analyzed)
+
+        # Transform for storage/response
+        categories_list = [
+            {
+                'category': cat_name,
+                'score': round(cat_data['score'], 2),
+                'hashtags': cat_data['hashtags'][:5],
+                'views': cat_data['views']
+            }
+            for cat_name, cat_data in trending['categories'].items()
+        ]
+
+        subcategories_list = [
+            {
+                'subcategory': subcat_name,
+                'score': round(subcat_data['score'], 2),
+                'hashtags': subcat_data['hashtags'][:5]
+            }
+            for subcat_name, subcat_data in trending['subcategories'].items()
+        ]
+
+        hashtags_list = [
+            {
+                'hashtag': h['hashtag'],
+                'views': h.get('views', 0),
+                'mapped_category': h['categories'][0] if h['categories'] else None,
+                'categories': h['categories'],
+                'confidence': h.get('confidence', 0)
+            }
+            for h in analyzed[:20]
+        ]
+
+        # Save to local MongoDB
+        doc = {
+            'hashtags': hashtags_list,
+            'trending_categories': categories_list,
+            'trending_subcategories': subcategories_list,
+            'updated_at': datetime.now(),
+        }
+
+        tiktok_hashtags_collection.update_one(
+            {'_id': 'latest'},
+            {'$set': doc},
+            upsert=True
+        )
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'hashtags': hashtags_list,
+                'trending_categories': categories_list,
+                'trending_subcategories': subcategories_list
+            },
+            'updated_at': datetime.now().isoformat(),
+            'source': 'fresh'
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
+
+
+@app.route('/api/trends/hashtags-cached', methods=['GET'])
+def api_trends_hashtags_cached():
+    """
+    Read pre-cached TikTok trending data from local MongoDB.
+    Returns the latest saved snapshot without calling any external API.
+    """
+    try:
+        doc = tiktok_hashtags_collection.find_one({'_id': 'latest'})
+
+        if not doc:
+            return jsonify({
+                'success': True,
+                'data': {'hashtags': [], 'trending_categories': [], 'trending_subcategories': []},
+                'updated_at': None,
+                'source': 'cache',
+                'message': 'No cached data. Click "Analyze Trends" to fetch fresh data.'
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'hashtags': doc.get('hashtags', []),
+                'trending_categories': doc.get('trending_categories', []),
+                'trending_subcategories': doc.get('trending_subcategories', [])
+            },
+            'updated_at': serialize_doc(doc.get('updated_at')),
+            'source': 'cache'
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
+
+
 @app.route('/api/trends/category/<category>', methods=['GET'])
 def api_trends_by_category(category):
     """
@@ -1433,6 +1626,124 @@ def api_trends_by_category(category):
         return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
 
 
+@app.route('/api/feed/nearest-event', methods=['GET'])
+def api_feed_nearest_event():
+    """
+    Get the nearest upcoming or currently active seasonal event.
+    Drives the Event Picks and Previously Worked sections of the feed dashboard.
+    """
+    try:
+        from seasonal_event_category_mapping import get_nearest_upcoming_event
+
+        event = get_nearest_upcoming_event()
+
+        return jsonify({
+            'success': True,
+            'event': event
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
+
+
+@app.route('/api/feed/trending-up', methods=['GET'])
+def api_feed_trending_up():
+    """
+    Get items with growing momentum by comparing two consecutive periods.
+    Compares last N days vs previous N days, returns items with >=20% growth
+    or new entrants with >=3 qty.
+
+    Query params:
+        - days: Period length in days (default: 7)
+        - limit: Max items to return (default: 20)
+    """
+    try:
+        days = int(request.args.get('days', 7))
+        limit = int(request.args.get('limit', 20))
+
+        now = datetime.now()
+        recent_end = now
+        recent_start = now - timedelta(days=days)
+        prev_end = recent_start
+        prev_start = prev_end - timedelta(days=days)
+
+        # Run pipelines for both periods
+        recent_pipeline = get_top_items_pipeline(recent_start, recent_end)
+        prev_pipeline = get_top_items_pipeline(prev_start, prev_end)
+
+        recent_results = list(orders_collection.aggregate(recent_pipeline))
+        recent_results = serialize_doc(recent_results)
+
+        prev_results = list(orders_collection.aggregate(prev_pipeline))
+        prev_results = serialize_doc(prev_results)
+
+        # Build lookup of previous period by item_id
+        prev_map = {}
+        for item in prev_results:
+            if item.get('item_id'):
+                prev_map[item['item_id']] = item
+
+        # Compare and find trending up items
+        trending = []
+        for item in recent_results:
+            item_id = item.get('item_id')
+            if not item_id:
+                continue
+
+            current_qty = item.get('total_qty', 0)
+            prev_item = prev_map.get(item_id)
+
+            if prev_item:
+                prev_qty = prev_item.get('total_qty', 0)
+                if prev_qty > 0:
+                    delta_pct = round(((current_qty - prev_qty) / prev_qty) * 100, 1)
+                else:
+                    delta_pct = 100.0
+                delta_qty = current_qty - prev_qty
+                is_new = False
+
+                # Only include if >=20% growth
+                if delta_pct < 20:
+                    continue
+            else:
+                # New entrant - not in previous period
+                if current_qty < 3:
+                    continue
+                prev_qty = 0
+                delta_qty = current_qty
+                delta_pct = 100.0
+                is_new = True
+
+            item['prev_qty'] = prev_qty
+            item['delta_qty'] = delta_qty
+            item['delta_pct'] = delta_pct
+            item['is_new'] = is_new
+            trending.append(item)
+
+        # Sort by delta_pct descending
+        trending.sort(key=lambda x: x['delta_pct'], reverse=True)
+        trending = trending[:limit]
+
+        return jsonify({
+            'success': True,
+            'data': trending,
+            'count': len(trending),
+            'periods': {
+                'recent': {
+                    'start': recent_start.strftime('%Y-%m-%d'),
+                    'end': recent_end.strftime('%Y-%m-%d')
+                },
+                'previous': {
+                    'start': prev_start.strftime('%Y-%m-%d'),
+                    'end': prev_end.strftime('%Y-%m-%d')
+                }
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 400
+
+
 @app.route('/api/generate-feed', methods=['POST'])
 def api_generate_feed():
     """
@@ -1452,6 +1763,7 @@ def api_generate_feed():
         items = data.get('items', [])
         hashtags = data.get('hashtags', [])
         trending_categories = data.get('trending_categories', [])
+        seasonality = data.get('seasonality', [])
         date_range = data.get('date_range', {})
 
         # Build context for AI
@@ -1493,6 +1805,23 @@ def api_generate_feed():
             if upcoming:
                 event_info = [f"- {e['name']} ({e['date']}): Focus on {', '.join(e['categories'])}" for e in upcoming]
                 context_parts.append("UPCOMING EVENTS IN EGYPT:\n" + "\n".join(event_info))
+
+        if include_events and seasonality:
+            # Add cached seasonality top items per event
+            seasonality_info = []
+            by_event = {}
+            for s in seasonality:
+                event_name = s.get('event_name', 'Unknown')
+                if event_name not in by_event:
+                    by_event[event_name] = []
+                if s.get('top_item'):
+                    by_event[event_name].append(s)
+            for event_name, items_list in list(by_event.items())[:5]:
+                if items_list:
+                    item_strs = [f"  - {it['top_item'].get('item_name', 'Unknown')[:40]} ({it.get('path_label', '')})" for it in items_list[:3]]
+                    seasonality_info.append(f"{event_name}:\n" + "\n".join(item_strs))
+            if seasonality_info:
+                context_parts.append("TOP SELLING ITEMS PER SEASONAL EVENT (cached):\n" + "\n".join(seasonality_info))
 
         if include_trends and (hashtags or trending_categories):
             trend_info = []
